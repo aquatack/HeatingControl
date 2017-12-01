@@ -5,6 +5,8 @@
 #include <blynk.h>
 #include "BlynkAuth.h"
 
+#define Z2_SETPOINT V4
+
 int i = 0, j = 0;
 float remoteTemperature = -999;
 time_t timeStamp = 0;
@@ -17,7 +19,7 @@ int retrieveRemoteTemperature(String extra) {
 }
 
 // Attach a Button widget (mode: Push) to the Virtual pin 1 - and send sweet tweets!
-BLYNK_WRITE(V4) {
+BLYNK_WRITE(Z2_SETPOINT) {
     j = param.asInt();
 }
 
@@ -37,7 +39,7 @@ void setup()
     Blynk.begin(BlynkAuth);
 
     // sync the setpoint temperature.
-    Blynk.syncVirtual(V4);
+    Blynk.syncVirtual(Z2_SETPOINT);
 }
 
 void loop()
