@@ -35,6 +35,9 @@ void setup()
 
     Particle.publish("Waking up");
     Blynk.begin(BlynkAuth);
+
+    // sync the setpoint temperature.
+    Blynk.syncVirtual(V4);
 }
 
 void loop()
