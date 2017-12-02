@@ -6,10 +6,14 @@
 #include "BlynkAuth.h"
 
 #define Z2_SETPOINT V4
+#define Z2_TEMP V2
 
-int i = 0, j = 0;
+// Time in s that we want Z2 temp reading to be within.
+const int MAX_AGE_Z2_TEMP = 5*60;
+
 float remoteTemperature = -999;
 time_t timeStamp = 0;
+float z2SetPoint = 0;
 
 // Cloud functions must return int and take one String
 int retrieveRemoteTemperature(String extra) {
@@ -20,9 +24,10 @@ int retrieveRemoteTemperature(String extra) {
 
 // Attach a Button widget (mode: Push) to the Virtual pin 1 - and send sweet tweets!
 BLYNK_WRITE(Z2_SETPOINT) {
-    j = param.asInt();
+    z2SetPoint = param.asInt();
 }
 
+// bootup routines.
 void setup()
 {
     // Setup IO
@@ -42,17 +47,17 @@ void setup()
     Blynk.syncVirtual(Z2_SETPOINT);
 }
 
+// Looper.
 void loop()
 {
     Serial.println("******************");
-
-    i++;
-    Blynk.virtualWrite(V2, i);
-    Serial.printf("%d\n", j);
-
-    Serial.printf("remoteTemp at %i: %3.4f \n", timeStamp, remoteTemperature);
+    Serial.printf("%f\n", z2SetPoint);
     int age = Time.now() - timeStamp;
-    Serial.printf("Age: %d\n", age);
+    if(age < MAX_AGE_Z2_TEMP)
+    {
+        Serial.printf("remoteTemp at %i: %3.4fC. %d old.\n", timeStamp, remoteTemperature, age);
+        Blynk.virtualWrite(Z2_TEMP, remoteTemperature);
+    }
 
     Blynk.run();
     delay(1000);
