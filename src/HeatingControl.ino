@@ -29,12 +29,15 @@ float z2SetPoint = 0;
 int retrieveRemoteTemperature(String extra) {
     remoteTemperature = atof(extra);
     timeStamp = Time.now();
+    Serial.printf("remoteTemp at %i: %3.2fC.\n", timeStamp, remoteTemperature);
+    Blynk.virtualWrite(Z2_TEMP, remoteTemperature);
     return 1;
 }
 
 // Attach a Button widget (mode: Push) to the Virtual pin 1 - and send sweet tweets!
 BLYNK_WRITE(Z2_SETPOINT) {
     z2SetPoint = param.asInt();
+    Serial.printf("Setpoint: %f\n", z2SetPoint);
 }
 
 // bootup routines.
@@ -62,14 +65,6 @@ void setup()
 // Looper.
 void loop()
 {
-    Serial.println("******************");
-    Serial.printf("%f\n", z2SetPoint);
-    int age = Time.now() - timeStamp;
-    if(age < MAX_AGE_Z2_TEMP)
-    {
-        Serial.printf("remoteTemp at %i: %3.2fC. %ds old.\n", timeStamp, remoteTemperature, age);
-        Blynk.virtualWrite(Z2_TEMP, remoteTemperature);
-    }
 
     //delay(100); // allow the ADC to settle.
     //float systemTemp = GetTempDegC(analogRead(A_SYSTEMTEMP));
@@ -77,6 +72,6 @@ void loop()
     //Serial.printf("System temp: %3.2fC\n", systemTemp);
 
     Blynk.run();
-    delay(1000);
+    //delay(1000);
 
 }
