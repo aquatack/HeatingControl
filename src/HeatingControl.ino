@@ -1,6 +1,6 @@
 
 #define BLYNK_PRINT Serial  // Set serial output for debug prints
-//#define BLYNK_DEBUG       // Uncomment this to see detailed prints
+#define BLYNK_DEBUG       // Uncomment this to see detailed prints
 
 #include <blynk.h>
 #include "BlynkAuth.h"
@@ -61,7 +61,7 @@ void setup()
     pinMode(D_ZONE2_CTRL, OUTPUT);    // D1 for Zone 2 control
     digitalWrite(D_ZONE2_CTRL, LOW);  // Zone 2 off.
 
-    Serial.begin(9600);
+    Serial.begin(115200);
     bool success = Particle.function("postTemp", retrieveRemoteTemperature);
 
     delay(5000); // Allow board to settle
@@ -82,6 +82,7 @@ void loop()
     if(age < MAX_AGE_Z2_TEMP)
     {
         Serial.printf("remoteTemp at %i: %3.2fC. %ds old.\n", timeStamp, remoteTemperature, age);
+        delay(100);
         Blynk.virtualWrite(Z2_TEMP, remoteTemperature);
     }
 
@@ -90,7 +91,7 @@ void loop()
     Serial.printf("A0: %3.2f\n", systemTemp);
     //Blynk.virtualWrite(SYS_TEMP, systemTemp);
     //Serial.printf("System temp: %3.2fC\n", systemTemp);
-
+    delay(100);
     Blynk.run();
     delay(1000);
 
