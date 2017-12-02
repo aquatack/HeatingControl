@@ -4,9 +4,19 @@
 
 #include <blynk.h>
 #include "BlynkAuth.h"
+//#include "SystemTemp.h"
 
-#define Z2_SETPOINT V4
+// Blynk defines
+#define SYS_TEMP V0
+#define Z1_TEMP V1
 #define Z2_TEMP V2
+#define Z1_SETPOINT V3
+#define Z2_SETPOINT V4
+
+// Particle IO defines
+#define A_SYSTEMTEMP A0
+#define D_ZONE1_CTRL D0
+#define D_ZONE2_CTRL D1
 
 // Time in s that we want Z2 temp reading to be within.
 const int MAX_AGE_Z2_TEMP = 5*60;
@@ -31,9 +41,11 @@ BLYNK_WRITE(Z2_SETPOINT) {
 void setup()
 {
     // Setup IO
-    pinMode(A0, INPUT);     // ADC for temp sensor
-    pinMode(D0, OUTPUT);    // D0 for Zone 1 control
-    digitalWrite(D0, LOW);  // Zone 1 off.
+    pinMode(A_SYSTEMTEMP, INPUT);     // ADC for temp sensor
+    pinMode(D_ZONE1_CTRL, OUTPUT);    // D0 for Zone 1 control
+    digitalWrite(D_ZONE1_CTRL, LOW);  // Zone 1 off.
+    pinMode(D_ZONE2_CTRL, OUTPUT);    // D1 for Zone 2 control
+    digitalWrite(D_ZONE2_CTRL, LOW);  // Zone 2 off.
 
     Serial.begin(9600);
     bool success = Particle.function("postTemp", retrieveRemoteTemperature);
@@ -55,9 +67,14 @@ void loop()
     int age = Time.now() - timeStamp;
     if(age < MAX_AGE_Z2_TEMP)
     {
-        Serial.printf("remoteTemp at %i: %3.4fC. %d old.\n", timeStamp, remoteTemperature, age);
+        Serial.printf("remoteTemp at %i: %3.2fC. %ds old.\n", timeStamp, remoteTemperature, age);
         Blynk.virtualWrite(Z2_TEMP, remoteTemperature);
     }
+
+    //delay(100); // allow the ADC to settle.
+    //float systemTemp = GetTempDegC(analogRead(A_SYSTEMTEMP));
+    //Blynk.virtualWrite(SYS_TEMP, systemTemp);
+    //Serial.printf("System temp: %3.2fC\n", systemTemp);
 
     Blynk.run();
     delay(1000);
