@@ -4,7 +4,6 @@
 
 #include <blynk.h>
 #include "BlynkAuth.h"
-//#include "SystemTemp.h"
 
 // Blynk defines
 #define SYS_TEMP V0
@@ -35,6 +34,21 @@ int retrieveRemoteTemperature(String extra) {
 // Attach a Button widget (mode: Push) to the Virtual pin 1 - and send sweet tweets!
 BLYNK_WRITE(Z2_SETPOINT) {
     z2SetPoint = param.asInt();
+}
+
+float GetTempDegC(int adcInput)
+{
+    const float offset_mV = 500.0;
+    const float scale_mV_degC = 10.0;
+    const float valPermV = 0.8; // 4096 steps between 0 and 3.3V
+
+    float mVOut = adcInput * valPermV;
+
+    // mVOut = offset_mV + T * scale_mV_degC
+    // (mVOut - offset_mV)/scale_mV_degC
+
+    float temperature = (mVOut - offset_mV) / scale_mV_degC;
+    return temperature;
 }
 
 // bootup routines.
@@ -71,8 +85,9 @@ void loop()
         Blynk.virtualWrite(Z2_TEMP, remoteTemperature);
     }
 
-    //delay(100); // allow the ADC to settle.
-    //float systemTemp = GetTempDegC(analogRead(A_SYSTEMTEMP));
+    delay(100); // allow the ADC to settle.
+    float systemTemp = GetTempDegC(analogRead(A_SYSTEMTEMP));
+    Serial.printf("A0: %3.2f\n", systemTemp);
     //Blynk.virtualWrite(SYS_TEMP, systemTemp);
     //Serial.printf("System temp: %3.2fC\n", systemTemp);
 
