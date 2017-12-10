@@ -4,7 +4,7 @@
 
 #include <blynk.h>
 #include "BlynkAuth.h"
-//#include "SystemTemp.h"
+#include "SystemTemp.h"
 
 // Blynk defines
 #define SYS_TEMP V0
@@ -28,21 +28,6 @@ time_t      timeStamp = 0;
 float       z2SetPoint = 0;
 BlynkTimer  timer;
 
-float GetTempDegC(int adcInput)
-{
-    const float offset_mV = 500.0;
-    const float scale_mV_degC = 10.0;
-    const float valPermV = 0.8; // 4096 steps between 0 and 3.3V
-
-    float mVOut = adcInput * valPermV;
-
-    // mVOut = offset_mV + T * scale_mV_degC
-    // (mVOut - offset_mV)/scale_mV_degC
-
-    float temperature = (mVOut - offset_mV) / scale_mV_degC;
-    return temperature;
-}
-
 // Cloud functions must return int and take one String
 int retrieveRemoteTemperature(String extra) {
     remoteTemperature = atof(extra);
@@ -52,21 +37,19 @@ int retrieveRemoteTemperature(String extra) {
     return 1;
 }
 
-// Attach a Button widget (mode: Push) to the Virtual pin 1 - and send sweet tweets!
+// Call back for the setpoint.
 BLYNK_WRITE(Z2_SETPOINT) {
     z2SetPoint = param.asInt();
     Serial.printf("Setpoint: %f\n", z2SetPoint);
 }
 
-// This function sends Arduino's up time every second to Virtual Pin (5).
-// In the app, Widget's reading frequency should be set to PUSH. This means
-// that you define how often to send data to Blynk App.
+// Measures the System's temperature. It then updates the relevant
+// Blynk virtual pin and prints some debug. This is the callback method
+// from a blynk timer.
 void measureSysTemp()
 {
-  // You can send any value at any time.
-  // Please don't send more that 10 values per second.
   delay(100); // allow the ADC to settle.
-  float systemTemp = GetTempDegC(analogRead(A_SYSTEMTEMP));
+  float systemTemp = getTempDegC(analogRead(A_SYSTEMTEMP));
   Blynk.virtualWrite(SYS_TEMP, systemTemp);
   Serial.printf("System temp: %3.2fC\n", systemTemp);
 }
@@ -82,27 +65,26 @@ void setup()
     digitalWrite(D_ZONE2_CTRL, LOW);  // Zone 2 off.
 
     Serial.begin(9600);
+
+    // Cloud function used to retrieve a remote temperature.
     bool success = Particle.function("postTemp", retrieveRemoteTemperature);
 
     delay(5000); // Allow board to settle
 
+    // System timers for events.
     timer.setInterval(SYS_TEMP_CAPTURE_INTERVAL, measureSysTemp);
 
+    // Blynk startup and publishing wakeup message.
     Particle.publish("Waking up");
     Blynk.begin(BlynkAuth);
 
-    // sync the setpoint temperature.
+    // sync from Blynk.
     Blynk.syncVirtual(Z2_SETPOINT);
 }
 
 // Looper.
 void loop()
 {
-
-
-
-    Blynk.run();
+    Blynk.run(); // updates Blynk
     timer.run(); // spins the BlynkTimer
-    //delay(1000);
-
 }
