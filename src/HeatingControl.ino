@@ -5,6 +5,8 @@
 #include <blynk.h>
 #include "BlynkAuth.h"
 #include "SystemTemp.h"
+#include "ZoneController.h"
+#include "Programmer.h"
 
 // Blynk defines
 #define SYS_TEMP V0
@@ -23,24 +25,40 @@ const int   MAX_AGE_Z2_TEMP = 5*60;
 // Timing interval to capture the system temperature (s).
 const long  SYS_TEMP_CAPTURE_INTERVAL = 1*1000;
 
-float       remoteTemperature = -999;
-time_t      timeStamp = 0;
-float       z2SetPoint = 0;
-BlynkTimer  timer;
+RemoteTemp      zone1Temp;
+RemoteTemp      zone2Temp;
+ZoneController  zone1Controller = ZoneController(D_ZONE1_CTRL);
+ZoneController  zone2Controller = ZoneController(D_ZONE2_CTRL);
+SetPoint        z1SetPoint;
+SetPoint        z2SetPoint;
+BlynkTimer      timer;
 
 // Cloud functions must return int and take one String
-int retrieveRemoteTemperature(String extra) {
-    remoteTemperature = atof(extra);
-    timeStamp = Time.now();
-    Serial.printf("remoteTemp at %i: %3.2fC.\n", timeStamp, remoteTemperature);
-    Blynk.virtualWrite(Z2_TEMP, remoteTemperature);
+int retrieveZone2Temperature(String extra) {
+    zone2Temp.temperature = atof(extra);
+    zone2Temp.timestamp = Time.now();
+    Serial.printf("remoteTemp at %i: %3.2fC.\n", zone2Temp.timestamp, zone2Temp.temperature);
+    Blynk.virtualWrite(Z2_TEMP, zone2Temp.temperature);
+
+    ControllerState state;
+    zone2Controller.UpdateSystem(zone2Temp.timestamp, zone2Temp, z2SetPoint, state);
     return 1;
 }
 
 // Call back for the setpoint.
+BLYNK_WRITE(Z1_SETPOINT) {
+    z1SetPoint.intended = param.asFloat();
+    Serial.printf("Z1 Setpoint: %f\n", z1SetPoint.intended);
+    ControllerState state;
+    zone2Controller.UpdateSystem(Time.now(), zone1Temp, z1SetPoint, state);
+}
+
+// Call back for the setpoint.
 BLYNK_WRITE(Z2_SETPOINT) {
-    z2SetPoint = param.asInt();
-    Serial.printf("Setpoint: %f\n", z2SetPoint);
+    z2SetPoint.intended = param.asFloat();
+    Serial.printf("Z2 Setpoint: %f\n", z2SetPoint.intended);
+    ControllerState state;
+    zone2Controller.UpdateSystem(Time.now(), zone2Temp, z2SetPoint, state);
 }
 
 // Measures the System's temperature. It then updates the relevant
@@ -66,19 +84,34 @@ void setup()
 
     Serial.begin(9600);
 
-    // Cloud function used to retrieve a remote temperature.
-    bool success = Particle.function("postTemp", retrieveRemoteTemperature);
+
+
+    // System timers for events. Ignore the timerId.
+    timer.setInterval(SYS_TEMP_CAPTURE_INTERVAL, measureSysTemp);
+
+    // Setup the Controllers.
+    time_t t = Time.now();
+    zone1Controller.InitialiseController(t);
+    zone2Controller.InitialiseController(t);
+
+    // Setup the setpoints
+    z1SetPoint.intended = 21.0;
+    z2SetPoint.intended = 21.0;
+
+
+    // Cloud function used to retrieve a zone 2 temperature.
+    zone2Temp.temperature = -999.0;
+    zone2Temp.timestamp = 0;
+    bool success = Particle.function("postTemp", retrieveZone2Temperature);
 
     delay(5000); // Allow board to settle
-
-    // System timers for events.
-    timer.setInterval(SYS_TEMP_CAPTURE_INTERVAL, measureSysTemp);
 
     // Blynk startup and publishing wakeup message.
     Particle.publish("Waking up");
     Blynk.begin(BlynkAuth);
 
     // sync from Blynk.
+    Blynk.syncVirtual(Z1_SETPOINT);
     Blynk.syncVirtual(Z2_SETPOINT);
 }
 
