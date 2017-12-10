@@ -19,6 +19,14 @@ void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, Se
     state.setPoint.intendedH = setPoint.intended + HysterisisBracketSide;
     state.setPoint.intendedL = setPoint.intended - HysterisisBracketSide;
 
+    if(measuredTemperature.timestamp + MaxTempAge < now)
+    {
+        Serial.printf("The temperature measurement is too old (measure: %d, now: %d). Ignoring.\n",
+            measuredTemperature.timestamp,
+            now);
+        return;
+    }
+
     if(!digitalRead(ZoneControlOutput) && measuredTemperature.temperature < state.setPoint.intendedL)
     {
         Serial.printf("Measured: %3.2f, Target: %3.2f. Too Cold. Trying to switch on Zone %d.\n",

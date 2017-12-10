@@ -9,19 +9,28 @@
 #include "Programmer.h"
 
 // Blynk defines
-#define SYS_TEMP V0
-#define Z1_TEMP V1
-#define Z2_TEMP V2
-#define Z1_SETPOINT V3
-#define Z2_SETPOINT V4
+#define SYS_TEMP        V0
+#define Z1_TEMP         V1
+#define Z2_TEMP         V2
+#define Z1_SETPOINT     V3
+#define Z2_SETPOINT     V4
+#define Z1_SETPOINTL    V5
+#define Z2_SETPOINTL    V6
+#define Z1_SETPOINTH    V7
+#define Z2_SETPOINTH    V8
+#define Z1_ON           V9
+#define Z2_ON           V10
+#define Z1_INTENT       V11
+#define Z2_INTENT       V12
+#define Z1_BACKOFFT     V13
+#define Z2_BACKOFFT     V14
 
 // Particle IO defines
-#define A_SYSTEMTEMP A0
-#define D_ZONE1_CTRL D0
-#define D_ZONE2_CTRL D1
+#define A_SYSTEMTEMP    A0
+#define D_ZONE1_CTRL    D0
+#define D_ZONE2_CTRL    D1
 
-// Time in s that we want Z2 temp reading to be within.
-const int   MAX_AGE_Z2_TEMP = 5*60;
+
 // Timing interval to capture the system temperature (s).
 const long  SYS_TEMP_CAPTURE_INTERVAL = 1*1000;
 
@@ -33,15 +42,32 @@ SetPoint        z1SetPoint;
 SetPoint        z2SetPoint;
 BlynkTimer      timer;
 
+WidgetLED       z1Active(Z1_ON);
+WidgetLED       z2Active(Z2_ON);
+WidgetLED       z1Intent(Z1_INTENT);
+WidgetLED       z2Intent(Z2_INTENT);
+
 // Cloud functions must return int and take one String
 int retrieveZone2Temperature(String extra) {
     zone2Temp.temperature = atof(extra);
     zone2Temp.timestamp = Time.now();
     Serial.printf("remoteTemp at %i: %3.2fC.\n", zone2Temp.timestamp, zone2Temp.temperature);
-    Blynk.virtualWrite(Z2_TEMP, zone2Temp.temperature);
 
     ControllerState state;
     zone2Controller.UpdateSystem(zone2Temp.timestamp, zone2Temp, z2SetPoint, state);
+    Serial.printf("intent: %d\n", state.zoneIntent);
+    Blynk.virtualWrite(Z2_TEMP, zone2Temp.temperature);
+    if(state.zoneOn)
+        z2Active.on();
+    else
+        z2Active.off();
+    if(state.zoneIntent)
+        z2Intent.on();
+    else
+        z2Intent.off();
+    Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
+    Blynk.virtualWrite(Z2_SETPOINTL, state.setPoint.intendedL);
+    Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);
     return 1;
 }
 
