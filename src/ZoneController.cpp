@@ -18,6 +18,9 @@ void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, Se
     state.setPoint.intended = setPoint.intended;
     state.setPoint.intendedH = setPoint.intended + HysterisisBracketSide;
     state.setPoint.intendedL = setPoint.intended - HysterisisBracketSide;
+    state.zoneOn = digitalRead(ZoneControlOutput);
+    state.zoneIntent = digitalRead(ZoneControlOutput);
+    state.zoneBackoffT = LastHeatingToggleTime + MinSwitchTime - now;
 
     if(measuredTemperature.timestamp + MaxTempAge < now)
     {
@@ -49,6 +52,8 @@ void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, Se
         state.zoneOn = digitalRead(ZoneControlOutput);
         return;
     }
+
+
     return;
 }
 
