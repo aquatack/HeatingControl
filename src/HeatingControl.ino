@@ -47,18 +47,10 @@ WidgetLED       z2Active(Z2_ON);
 WidgetLED       z1Intent(Z1_INTENT);
 WidgetLED       z2Intent(Z2_INTENT);
 
-
-
-// Cloud functions must return int and take one String
-int retrieveZone2Temperature(String extra) {
-    zone2Temp.temperature = atof(extra);
-    zone2Temp.timestamp = Time.now();
-    Serial.printf("remoteTemp at %i: %3.2fC.\n", zone2Temp.timestamp, zone2Temp.temperature);
-
-    ControllerState state;
-    zone2Controller.UpdateSystem(zone2Temp.timestamp, zone2Temp, z2SetPoint, state);
-    Serial.printf("intent: %d\n", state.zoneIntent);
-    Blynk.virtualWrite(Z2_TEMP, zone2Temp.temperature);
+// Update Blynk client on temp measurement or setPoint change
+void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &state)
+{
+    Blynk.virtualWrite(Z2_TEMP, zoneTemp.temperature);
     if(state.zoneOn)
         z2Active.on();
     else
@@ -70,6 +62,19 @@ int retrieveZone2Temperature(String extra) {
     Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
     Blynk.virtualWrite(Z2_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);
+    return;
+}
+
+// Cloud functions must return int and take one String
+int retrieveZone2Temperature(String extra) {
+    zone2Temp.temperature = atof(extra);
+    zone2Temp.timestamp = Time.now();
+    Serial.printf("remoteTemp at %i: %3.2fC.\n", zone2Temp.timestamp, zone2Temp.temperature);
+
+    ControllerState state;
+    zone2Controller.UpdateSystem(zone2Temp.timestamp, zone2Temp, z2SetPoint, state);
+    Serial.printf("intent: %d\n", state.zoneIntent);
+    updateZ2BlynkClient(zone2Temp, state);
     return 1;
 }
 
@@ -87,19 +92,7 @@ BLYNK_WRITE(Z2_SETPOINT) {
     Serial.printf("Z2 Setpoint: %f\n", z2SetPoint.intended);
     ControllerState state;
     zone2Controller.UpdateSystem(Time.now(), zone2Temp, z2SetPoint, state);
-
-    Blynk.virtualWrite(Z2_TEMP, zone2Temp.temperature);
-    if(state.zoneOn)
-        z2Active.on();
-    else
-        z2Active.off();
-    if(state.zoneIntent)
-        z2Intent.on();
-    else
-        z2Intent.off();
-    Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
-    Blynk.virtualWrite(Z2_SETPOINTL, state.setPoint.intendedL);
-    Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);
+    updateZ2BlynkClient(zone2Temp, state);
 }
 
 // Measures the System's temperature. It then updates the relevant
@@ -113,23 +106,7 @@ void measureSysTemp()
   Serial.printf("System temp: %3.2fC\n", systemTemp);
 }
 
-// Update Blynk client on temp measurement or setPoint change
-int updateZBlynkClient(int i)//(RemoteTemp zoneTemp, ControllerState &state)
-{
-/*    Blynk.virtualWrite(Z2_TEMP, zoneTemp.temperature);
-    if(state.zoneOn)
-        z2Active.on();
-    else
-        z2Active.off();
-    if(state.zoneIntent)
-        z2Intent.on();
-    else
-        z2Intent.off();
-    Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
-    Blynk.virtualWrite(Z2_SETPOINTL, state.setPoint.intendedL);
-    Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);*/
-    return 1;
-}
+
 
 // bootup routines.
 void setup()
