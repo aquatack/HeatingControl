@@ -60,7 +60,7 @@ void updateZ1BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
         z1Intent.on();
     else
         z1Intent.off();
-    Blynk.virtualWrite(Z1_BACKOFFT, state.zoneBackoffT);
+    //Blynk.virtualWrite(Z1_BACKOFFT, state.zoneBackoffT);
     Blynk.virtualWrite(Z1_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z1_SETPOINTH, state.setPoint.intendedH);
     return;
@@ -77,7 +77,7 @@ void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
         z2Intent.on();
     else
         z2Intent.off();
-    Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
+    //Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
     Blynk.virtualWrite(Z2_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);
     return;
@@ -160,7 +160,7 @@ void setup()
 
     // System timers for events. Ignore the timerId.
     timer.setInterval(SYS_TEMP_CAPTURE_INTERVAL, measureSysTemp);
-    timer.setInterval(SYS_STATE_UPDATE_INTERVAL, updateControllers);
+    //timer.setInterval(SYS_STATE_UPDATE_INTERVAL, updateControllers); //removing for now as perhaps not necessary.
 
     // Setup the Controllers.
     time_t t = Time.now();
