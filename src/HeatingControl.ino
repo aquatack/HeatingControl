@@ -32,7 +32,8 @@
 
 
 // Timing interval to capture the system temperature (s).
-const long  SYS_TEMP_CAPTURE_INTERVAL = 1*1000;
+const long  SYS_TEMP_CAPTURE_INTERVAL = 1 * 1000;
+const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000;
 
 RemoteTemp      zone1Temp;
 RemoteTemp      zone2Temp;
@@ -48,6 +49,23 @@ WidgetLED       z1Intent(Z1_INTENT);
 WidgetLED       z2Intent(Z2_INTENT);
 
 // Update Blynk client on temp measurement or setPoint change
+void updateZ1BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &state)
+{
+    Blynk.virtualWrite(Z1_TEMP, zoneTemp.temperature);
+    if(state.zoneOn)
+        z1Active.on();
+    else
+        z1Active.off();
+    if(state.zoneIntent)
+        z1Intent.on();
+    else
+        z1Intent.off();
+    Blynk.virtualWrite(Z1_BACKOFFT, state.zoneBackoffT);
+    Blynk.virtualWrite(Z1_SETPOINTL, state.setPoint.intendedL);
+    Blynk.virtualWrite(Z1_SETPOINTH, state.setPoint.intendedH);
+    return;
+}
+
 void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &state)
 {
     Blynk.virtualWrite(Z2_TEMP, zoneTemp.temperature);
@@ -66,6 +84,17 @@ void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
 }
 
 // Cloud functions must return int and take one String
+int retrieveZone1Temperature(String extra) {
+    zone1Temp.temperature = atof(extra);
+    zone1Temp.timestamp = Time.now();
+    Serial.printf("remoteTemp at %i: %3.2fC.\n", zone1Temp.timestamp, zone1Temp.temperature);
+
+    ControllerState state;
+    zone1Controller.UpdateSystem(zone1Temp.timestamp, zone1Temp, z1SetPoint, state);
+    updateZ1BlynkClient(zone1Temp, state);
+    return 1;
+}
+
 int retrieveZone2Temperature(String extra) {
     zone2Temp.temperature = atof(extra);
     zone2Temp.timestamp = Time.now();
@@ -73,9 +102,18 @@ int retrieveZone2Temperature(String extra) {
 
     ControllerState state;
     zone2Controller.UpdateSystem(zone2Temp.timestamp, zone2Temp, z2SetPoint, state);
-    Serial.printf("intent: %d\n", state.zoneIntent);
     updateZ2BlynkClient(zone2Temp, state);
     return 1;
+}
+
+void updateControllers()
+{
+    time_t now = Time.now();
+    ControllerState state;
+    zone2Controller.UpdateSystem(now, zone2Temp, z2SetPoint, state);
+    updateZ2BlynkClient(zone2Temp, state);
+    zone1Controller.UpdateSystem(now, zone1Temp, z1SetPoint, state);
+    updateZ1BlynkClient(zone1Temp, state);
 }
 
 // Call back for the setpoint.
@@ -83,7 +121,7 @@ BLYNK_WRITE(Z1_SETPOINT) {
     z1SetPoint.intended = param.asFloat();
     Serial.printf("Z1 Setpoint: %f\n", z1SetPoint.intended);
     ControllerState state;
-    zone2Controller.UpdateSystem(Time.now(), zone1Temp, z1SetPoint, state);
+    zone1Controller.UpdateSystem(Time.now(), zone1Temp, z1SetPoint, state);
 }
 
 // Call back for the setpoint.
@@ -120,10 +158,9 @@ void setup()
 
     Serial.begin(9600);
 
-
-
     // System timers for events. Ignore the timerId.
     timer.setInterval(SYS_TEMP_CAPTURE_INTERVAL, measureSysTemp);
+    timer.setInterval(SYS_STATE_UPDATE_INTERVAL, updateControllers);
 
     // Setup the Controllers.
     time_t t = Time.now();
@@ -134,6 +171,8 @@ void setup()
     z1SetPoint.intended = 21.0;
     z2SetPoint.intended = 21.0;
 
+    zone1Temp.temperature = -999.0;
+    zone1Temp.timestamp = 0;
 
     // Cloud function used to retrieve a zone 2 temperature.
     zone2Temp.temperature = -999.0;
