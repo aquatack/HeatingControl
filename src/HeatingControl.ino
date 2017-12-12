@@ -25,6 +25,16 @@
 #define Z1_BACKOFFT     V13
 #define Z2_BACKOFFT     V14
 
+// Blynk Programming channels.
+#define PROG_ZONE_SELECT        V50
+#define PROG_DAY_SELECT         V51
+#define PROG_SCHEDULE_SELECT    V52
+#define PROG_SCHEDULE_TABLE     V53
+#define PROG_TIME_IP            V54
+#define PROG_TEMP_SELECT        V55
+#define PROG_ADD                V56
+#define PROG_DELETE_SELECTION   V57
+
 // Particle IO defines
 #define A_SYSTEMTEMP    A0
 #define D_ZONE1_CTRL    D0
@@ -32,7 +42,7 @@
 
 
 // Timing interval to capture the system temperature (s).
-const long  SYS_TEMP_CAPTURE_INTERVAL = 1 * 1000;
+const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000;
 const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000;
 
 RemoteTemp      zone1Temp;
@@ -116,6 +126,21 @@ void updateControllers()
     updateZ1BlynkClient(zone1Temp, state);
 }
 
+BLYNK_WRITE(PROG_DAY_SELECT)
+{
+    float scheduleTemps[24] = {0};
+    getSchedule(0,0,0, scheduleTemps);
+    Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
+
+    for(int i = 0; i<24; i++)
+    {
+        String hour = String::format("%02d",i);
+        Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "add", i, hour, scheduleTemps[i]);
+    }
+
+    Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "pick", Time.hour());
+}
+
 // Call back for the setpoint.
 BLYNK_WRITE(Z1_SETPOINT) {
     z1SetPoint.intended = param.asFloat();
@@ -188,6 +213,10 @@ void setup()
     // sync from Blynk.
     Blynk.syncVirtual(Z1_SETPOINT);
     Blynk.syncVirtual(Z2_SETPOINT);
+
+    initialiseScheduledTemps();
+    Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
+
 }
 
 // Looper.
