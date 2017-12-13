@@ -1,43 +1,15 @@
 #include "Programmer.h"
 
-float ScheduledTemps[24] = {0};
-
-struct TempItem {
-    TempItem* next;
-    int hour;
-    float temp;
-}
-
-class TempList {
-    TempItem * start = NULL;
-public:
-    void addItem(int hour, float temp)
-    {
-        TempItem* item = new TempItem();
-        item->hour = hour;
-        item->temp = temp;
-        item->next = NULL;
-        if(start == NULL)
-        {
-            start = item;
-            return;
-        }
-        TempItem* currentItem = start->next;
-        while(currentItem != NULL && currentItem->hour<hour)
-        {
-            currentItem = currentItem->next;
-        }
-        TempItem* newNext = currentItem->next;
-        currentItem->next = item;
-        item->next = newNext;        
-    }
-}
+float ScheduledTemps[7][24] = {0.0f};
 
 void initialiseScheduledTemps()
 {
-    for(int i = 0; i<24; i++)
+    for(int j=0;j<7;j++)
     {
-        ScheduledTemps[i] = 21.0f;
+        for(int i = 0; i<24; i++)
+        {
+            ScheduledTemps[j][i] = 21.0f;
+        }
     }
 }
 
@@ -45,15 +17,24 @@ void getSchedule(int schedule, int zone, int day, float* setPoints)
 {
     for(int i = 0; i<24; i++)
     {
-        setPoints[i] = ScheduledTemps[i];
+        setPoints[i] = ScheduledTemps[day][i];
     }
     //Blynk.virtualWrite(V1, "clr");
 }
 
-void getCurrentSetpoint(time_t now, struct SetPoint& setpoint)
+void updateTemp(int schedule, int zone, int day, int hour, float temperature)
 {
-    int weekday = Time.weekday(now);
-    int hour = Time.hour(now);
+    Serial.printf("updateTemp: sched: %d, zone: %d, day: %d, hour: %d, temp: %3.2f\n", schedule,  zone,  day,  hour,  temperature);
+    ScheduledTemps[day][hour] = temperature;
+}
 
-    setpoint.intended = ScheduledTemps[hour];
+void getCurrentSetpoint(time_t now, int schedule, int zone, struct SetPoint& setpoint)
+{
+    int weekday = Time.weekday(now) - 1;
+    if(weekday == 0) { // adjust for Sunday
+        weekday = 7;
+    }
+    int hour = Time.hour(now);
+    Serial.printf("requested time: %d, %d\n", weekday, hour);
+    setpoint.intended = ScheduledTemps[weekday][hour];
 }

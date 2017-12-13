@@ -44,6 +44,7 @@
 // Timing interval to capture the system temperature (s).
 const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000;
 const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000;
+const long  SETPOINT_UPDATE_INTERVAL  = 60 * 1000;
 
 RemoteTemp      zone1Temp;
 RemoteTemp      zone2Temp;
@@ -118,6 +119,8 @@ int retrieveZone2Temperature(String extra) {
 
 void updateControllers()
 {
+    Serial.printf("Updating Controllers.\n");
+    Serial.printf("Z1 setpoint: %3.2f, Z2 setpoint: %3.2f.\n", z1SetPoint.intended, z2SetPoint.intended);
     time_t now = Time.now();
     ControllerState state;
     zone2Controller.UpdateSystem(now, zone2Temp, z2SetPoint, state);
@@ -126,22 +129,80 @@ void updateControllers()
     updateZ1BlynkClient(zone1Temp, state);
 }
 
-BLYNK_WRITE(PROG_DAY_SELECT)
+int selectedProgrammingSchedule = 0;
+int selectedProgrammingZone = 0;
+int selectedProgrammingDay = 0;
+
+void refreshProgrammeTable()
 {
     float scheduleTemps[24] = {0};
-    getSchedule(0,0,0, scheduleTemps);
+    getSchedule(selectedProgrammingSchedule, selectedProgrammingZone, selectedProgrammingDay, scheduleTemps);
     Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
 
     for(int i = 0; i<24; i++)
     {
         String hour = String::format("%02d",i);
-        Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "add", i, hour, scheduleTemps[i]);
+        String temp = String::format("%3.1f C", scheduleTemps[i]);
+        Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "add", i, hour, temp);
+        Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "deselect", i);
     }
 
     Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "pick", Time.hour());
+
 }
 
-// Call back for the setpoint.
+BLYNK_WRITE(PROG_DAY_SELECT)
+{
+    selectedProgrammingDay = param.asInt();
+    refreshProgrammeTable();
+}
+
+BLYNK_WRITE(PROG_ZONE_SELECT)
+{
+    selectedProgrammingZone = param.asInt();
+    refreshProgrammeTable();
+}
+
+BLYNK_WRITE(PROG_SCHEDULE_SELECT)
+{
+    selectedProgrammingSchedule = param.asInt();
+    refreshProgrammeTable();
+}
+
+bool selectedProgrammingRows[24] = {0};
+
+BLYNK_WRITE(PROG_SCHEDULE_TABLE) {
+   String cmd = param[0].asStr();
+   if (cmd == "select") {
+       //row in table was selected.
+       selectedProgrammingRows[param[1].asInt()] = true;
+   }
+   if (cmd == "deselect") {
+       //row in table was deselected.
+       selectedProgrammingRows[param[1].asInt()] = false;
+   }
+   if (cmd == "order") {
+       //rows in table where reodered
+       //int oldRowIndex = param[1].asInt();
+       //int newRowIndex = param[2].asInt();
+   }
+}
+BLYNK_WRITE(PROG_TEMP_SELECT)
+{
+    for(int i = 0; i<24; i++)
+    {
+        if(selectedProgrammingRows[i])
+        {
+            updateTemp(selectedProgrammingSchedule,selectedProgrammingZone, selectedProgrammingDay, i, param.asFloat());
+            String hour = String::format("%02d",i);
+            String temp = String::format("%3.1f C", param.asFloat());
+            Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "update", i, hour, temp);
+        }
+    }
+    updateSetPoints();
+}
+
+/*// Call back for the setpoint.
 BLYNK_WRITE(Z1_SETPOINT) {
     z1SetPoint.intended = param.asFloat();
     Serial.printf("Z1 Setpoint: %f\n", z1SetPoint.intended);
@@ -156,7 +217,7 @@ BLYNK_WRITE(Z2_SETPOINT) {
     ControllerState state;
     zone2Controller.UpdateSystem(Time.now(), zone2Temp, z2SetPoint, state);
     updateZ2BlynkClient(zone2Temp, state);
-}
+}*/
 
 // Measures the System's temperature. It then updates the relevant
 // Blynk virtual pin and prints some debug. This is the callback method
@@ -169,7 +230,15 @@ void measureSysTemp()
   Serial.printf("System temp: %3.2fC\n", systemTemp);
 }
 
-
+void updateSetPoints()
+{
+    Serial.printf("UpdateSetPoints.\n");
+    // Schedule = 1. Zones 1 & 2.
+    getCurrentSetpoint(Time.now(), 1, 1, z1SetPoint);
+    getCurrentSetpoint(Time.now(), 1, 2, z2SetPoint);
+    Serial.printf("Retrieved setpoints 1: %3.2f, 2: %3.2f\n", z1SetPoint.intended, z2SetPoint.intended);
+    updateControllers();
+}
 
 // bootup routines.
 void setup()
@@ -185,6 +254,7 @@ void setup()
 
     // System timers for events. Ignore the timerId.
     timer.setInterval(SYS_TEMP_CAPTURE_INTERVAL, measureSysTemp);
+    timer.setInterval(SETPOINT_UPDATE_INTERVAL, updateSetPoints);
     //timer.setInterval(SYS_STATE_UPDATE_INTERVAL, updateControllers); //removing for now as perhaps not necessary.
 
     // Setup the Controllers.
@@ -192,9 +262,10 @@ void setup()
     zone1Controller.InitialiseController(t);
     zone2Controller.InitialiseController(t);
 
-    // Setup the setpoints
-    z1SetPoint.intended = 21.0;
-    z2SetPoint.intended = 21.0;
+
+
+    //z1SetPoint.intended = 21.0;
+    //z2SetPoint.intended = 21.0;
 
     zone1Temp.temperature = -999.0;
     zone1Temp.timestamp = 0;
@@ -202,6 +273,11 @@ void setup()
     // Cloud function used to retrieve a zone 2 temperature.
     zone2Temp.temperature = -999.0;
     zone2Temp.timestamp = 0;
+
+    // Setup the setpoints
+    initialiseScheduledTemps();
+    updateSetPoints();
+
     bool success = Particle.function("postTemp", retrieveZone2Temperature);
 
     delay(5000); // Allow board to settle
@@ -213,9 +289,10 @@ void setup()
     // sync from Blynk.
     Blynk.syncVirtual(Z1_SETPOINT);
     Blynk.syncVirtual(Z2_SETPOINT);
+    Blynk.syncVirtual(PROG_DAY_SELECT);
+    Blynk.syncVirtual(PROG_SCHEDULE_SELECT);
+    Blynk.syncVirtual(PROG_ZONE_SELECT);
 
-    initialiseScheduledTemps();
-    Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
 
 }
 
