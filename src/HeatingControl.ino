@@ -132,23 +132,25 @@ void updateControllers()
 int selectedProgrammingSchedule = 0;
 int selectedProgrammingZone = 0;
 int selectedProgrammingDay = 0;
+bool selectedProgrammingRows[24] = {0};
 
 void refreshProgrammeTable()
 {
     float scheduleTemps[24] = {0};
     getSchedule(selectedProgrammingSchedule, selectedProgrammingZone, selectedProgrammingDay, scheduleTemps);
     Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
-
+    Serial.printf("day: %d\n", selectedProgrammingDay);
     for(int i = 0; i<24; i++)
     {
         String hour = String::format("%02d",i);
         String temp = String::format("%3.1f C", scheduleTemps[i]);
         Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "add", i, hour, temp);
         Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "deselect", i);
+        selectedProgrammingRows[i] = false;
     }
 
+    // ToDo: only pick the hour row for the current day.
     Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "pick", Time.hour());
-
 }
 
 BLYNK_WRITE(PROG_DAY_SELECT)
@@ -169,7 +171,7 @@ BLYNK_WRITE(PROG_SCHEDULE_SELECT)
     refreshProgrammeTable();
 }
 
-bool selectedProgrammingRows[24] = {0};
+
 
 BLYNK_WRITE(PROG_SCHEDULE_TABLE) {
    String cmd = param[0].asStr();
