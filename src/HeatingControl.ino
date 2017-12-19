@@ -74,6 +74,7 @@ void updateZ1BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
     else
         z1Intent.off();
     //Blynk.virtualWrite(Z1_BACKOFFT, state.zoneBackoffT);
+    Blynk.virtualWrite(Z1_SETPOINT, state.setPoint.intended);
     Blynk.virtualWrite(Z1_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z1_SETPOINTH, state.setPoint.intendedH);
     return;
@@ -91,6 +92,7 @@ void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
     else
         z2Intent.off();
     //Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
+    Blynk.virtualWrite(Z2_SETPOINT, state.setPoint.intended);
     Blynk.virtualWrite(Z2_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);
     return;
