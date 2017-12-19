@@ -24,6 +24,8 @@
 #define Z2_INTENT       V12
 #define Z1_BACKOFFT     V13
 #define Z2_BACKOFFT     V14
+#define Z1_MODE         V15
+#define Z2_MODE         V16
 
 // Blynk Programming channels.
 #define PROG_ZONE_SELECT        V50
@@ -133,6 +135,8 @@ int selectedProgrammingSchedule = 0;
 int selectedProgrammingZone = 0;
 int selectedProgrammingDay = 0;
 bool selectedProgrammingRows[24] = {0};
+int selectedModeZ1 = 0;
+int selectedModeZ2 = 0;
 
 void refreshProgrammeTable()
 {
@@ -171,7 +175,15 @@ BLYNK_WRITE(PROG_SCHEDULE_SELECT)
     refreshProgrammeTable();
 }
 
+BLYNK_WRITE(Z1_MODE)
+{
+    selectedModeZ1 = param.asInt();
+}
 
+BLYNK_WRITE(Z2_MODE)
+{
+    selectedModeZ2 = param.asInt();
+}
 
 BLYNK_WRITE(PROG_SCHEDULE_TABLE) {
    String cmd = param[0].asStr();
@@ -264,8 +276,6 @@ void setup()
     zone1Controller.InitialiseController(t);
     zone2Controller.InitialiseController(t);
 
-
-
     //z1SetPoint.intended = 21.0;
     //z2SetPoint.intended = 21.0;
 
@@ -294,8 +304,8 @@ void setup()
     Blynk.syncVirtual(PROG_DAY_SELECT);
     Blynk.syncVirtual(PROG_SCHEDULE_SELECT);
     Blynk.syncVirtual(PROG_ZONE_SELECT);
-
-
+    Blynk.syncVirtual(Z1_MODE);
+    Blynk.syncVirtual(Z2_MODE);
 }
 
 // Looper.

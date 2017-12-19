@@ -1,8 +1,6 @@
 #include "Programmer.h"
 
-float ScheduledTemps[7][24] = {0.0f};
-
-void initialiseScheduledTemps()
+void Programmer::initialiseScheduledTemps()
 {
     for(int j=0;j<7;j++)
     {
@@ -13,24 +11,24 @@ void initialiseScheduledTemps()
     }
 }
 
-void getSchedule(int schedule, int zone, int day, float* setPoints)
+void Programmer::getSchedule(int schedule, int zone, int day, float* setPoints)
 {
     --day;
     for(int i = 0; i<24; i++)
     {
         setPoints[i] = ScheduledTemps[day][i];
     }
-    //Blynk.virtualWrite(V1, "clr");
 }
 
-void updateTemp(int schedule, int zone, int day, int hour, float temperature)
+void Programmer::updateTemp(int schedule, int zone, int day, int hour, float temperature)
 {
     --day;
-    Serial.printf("updateTemp: sched: %d, zone: %d, day: %d, hour: %d, temp: %3.2f\n", schedule,  zone,  day,  hour,  temperature);
+    Serial.printf("updateTemp: sched: %d, zone: %d, day: %d, hour: %d, temp: %3.2f\n",
+        schedule,  zone,  day,  hour,  temperature);
     ScheduledTemps[day][hour] = temperature;
 }
 
-void getCurrentSetpoint(time_t now, int schedule, int zone, struct SetPoint& setpoint)
+void Programmer::getCurrentSetpoint(time_t now, int schedule, int zone, struct SetPoint& setpoint)
 {
     int weekday = Time.weekday(now) - 2;
     if(weekday < 0) { // adjust for Sunday
