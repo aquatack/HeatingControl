@@ -28,7 +28,7 @@
 #define Z2_MODE         V16
 
 // Blynk Programming channels.
-#define PROG_ZONE_SELECT        V50
+//#define PROG_ZONE_SELECT        V50
 #define PROG_DAY_SELECT         V51
 #define PROG_SCHEDULE_SELECT    V52
 #define PROG_SCHEDULE_TABLE     V53
@@ -55,6 +55,7 @@ ZoneController  zone2Controller = ZoneController(D_ZONE2_CTRL);
 SetPoint        z1SetPoint;
 SetPoint        z2SetPoint;
 BlynkTimer      timer;
+Programmer      programmer = Programmer();
 
 WidgetLED       z1Active(Z1_ON);
 WidgetLED       z2Active(Z2_ON);
@@ -127,25 +128,25 @@ void updateControllers()
     Serial.printf("Z1 setpoint: %3.2f, Z2 setpoint: %3.2f.\n", z1SetPoint.intended, z2SetPoint.intended);
     time_t now = Time.now();
     ControllerState state;
+    //zone1Controller.UpdateSystem(now, zone1Temp, z1SetPoint, state);
+    //updateZ1BlynkClient(zone1Temp, state);
     zone2Controller.UpdateSystem(now, zone2Temp, z2SetPoint, state);
     updateZ2BlynkClient(zone2Temp, state);
-    zone1Controller.UpdateSystem(now, zone1Temp, z1SetPoint, state);
-    updateZ1BlynkClient(zone1Temp, state);
 }
 
 int selectedProgrammingSchedule = 0;
-int selectedProgrammingZone = 0;
+//int selectedProgrammingZone = 0;
 int selectedProgrammingDay = 0;
 bool selectedProgrammingRows[24] = {0};
-int selectedModeZ1 = 0;
-int selectedModeZ2 = 0;
+//int selectedModeZ1 = 0;
+//int selectedModeZ2 = 0;
 
 void refreshProgrammeTable()
 {
     float scheduleTemps[24] = {0};
-    getSchedule(selectedProgrammingSchedule, selectedProgrammingZone, selectedProgrammingDay, scheduleTemps);
+    programmer.getSchedule(selectedProgrammingSchedule, selectedProgrammingDay, scheduleTemps);
     Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
-    Serial.printf("day: %d\n", selectedProgrammingDay);
+    Serial.printf("sched: %d. day: %d\n", selectedProgrammingSchedule, selectedProgrammingDay);
     for(int i = 0; i<24; i++)
     {
         String hour = String::format("%02d",i);
@@ -165,12 +166,6 @@ BLYNK_WRITE(PROG_DAY_SELECT)
     refreshProgrammeTable();
 }
 
-BLYNK_WRITE(PROG_ZONE_SELECT)
-{
-    selectedProgrammingZone = param.asInt();
-    refreshProgrammeTable();
-}
-
 BLYNK_WRITE(PROG_SCHEDULE_SELECT)
 {
     selectedProgrammingSchedule = param.asInt();
@@ -179,12 +174,18 @@ BLYNK_WRITE(PROG_SCHEDULE_SELECT)
 
 BLYNK_WRITE(Z1_MODE)
 {
-    selectedModeZ1 = param.asInt();
+    // NOT ALLOWED CURRENTLY. Z1 has no remote thermostat, so leave this permanently on (as defined in the setup).
+    //programmer.selectProgram(1, selectedModeZ2);
+    programmer.selectProgram(1, ProgramIds::On);
+    updateSetPoints();
 }
 
 BLYNK_WRITE(Z2_MODE)
 {
-    selectedModeZ2 = param.asInt();
+    //selectedModeZ2 = param.asInt();
+    Serial.printf("Selected Z2 mode: %d\n", param.asInt());
+    programmer.selectProgram(2, (ProgramIds)param.asInt());
+    updateSetPoints();
 }
 
 BLYNK_WRITE(PROG_SCHEDULE_TABLE) {
@@ -209,7 +210,7 @@ BLYNK_WRITE(PROG_TEMP_SELECT)
     {
         if(selectedProgrammingRows[i])
         {
-            updateTemp(selectedProgrammingSchedule,selectedProgrammingZone, selectedProgrammingDay, i, param.asFloat());
+            programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, i, param.asFloat());
             String hour = String::format("%02d",i);
             String temp = String::format("%3.1f C", param.asFloat());
             Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "update", i, hour, temp);
@@ -249,9 +250,9 @@ void measureSysTemp()
 void updateSetPoints()
 {
     Serial.printf("UpdateSetPoints.\n");
-    // Schedule = 1. Zones 1 & 2.
-    getCurrentSetpoint(Time.now(), 1, 1, z1SetPoint);
-    getCurrentSetpoint(Time.now(), 1, 2, z2SetPoint);
+    time_t now = Time.now();
+    programmer.getCurrentSetpoint(1, now, z1SetPoint);
+    programmer.getCurrentSetpoint(2, now, z2SetPoint);
     Serial.printf("Retrieved setpoints 1: %3.2f, 2: %3.2f\n", z1SetPoint.intended, z2SetPoint.intended);
     updateControllers();
 }
@@ -289,7 +290,10 @@ void setup()
     zone2Temp.timestamp = 0;
 
     // Setup the setpoints
-    initialiseScheduledTemps();
+    //initialiseScheduledTemps();
+    programmer.initialise();
+    programmer.selectProgram(1, ProgramIds::On);
+    programmer.selectProgram(2, ProgramIds::Schedule);
     updateSetPoints();
 
     bool success = Particle.function("postTemp", retrieveZone2Temperature);
@@ -305,7 +309,6 @@ void setup()
     Blynk.syncVirtual(Z2_SETPOINT);
     Blynk.syncVirtual(PROG_DAY_SELECT);
     Blynk.syncVirtual(PROG_SCHEDULE_SELECT);
-    Blynk.syncVirtual(PROG_ZONE_SELECT);
     Blynk.syncVirtual(Z1_MODE);
     Blynk.syncVirtual(Z2_MODE);
 }
