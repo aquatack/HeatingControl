@@ -291,7 +291,7 @@ void setup()
 
     // Setup the setpoints
     //initialiseScheduledTemps();
-    programmer.initialise();
+    //programmer.initialise();
     programmer.selectProgram(1, ProgramIds::On);
     programmer.selectProgram(2, ProgramIds::Schedule);
     updateSetPoints();

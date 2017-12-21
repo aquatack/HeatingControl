@@ -26,14 +26,29 @@ public:
     virtual void updateTemp(int day, int hour, float temperature) = 0;
 };
 
-class ScheduleProg : public Program {
+class ProgrammableProg : public Program {
+protected:
     float ScheduledTemps[7][24];
 public:
-    ScheduleProg();
+    //ProgrammableProg() = 0;
     //~Schedule();
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
     void getSchedule(int day, float* setPoints);
     void updateTemp(int day, int hour, float temperature);
+};
+
+class ScheduleProg : public ProgrammableProg {
+public:
+    ScheduleProg();
+    //~Schedule();
+    //void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
+    //void getSchedule(int day, float* setPoints);
+    //void updateTemp(int day, int hour, float temperature);
+};
+
+class AwayProg : public ProgrammableProg {
+public:
+    AwayProg();
 };
 
 class OffProg : public Program {
@@ -52,16 +67,14 @@ public:
 
 class Programmer {
     Program* currentProgram[2];
-    //Program* z1PossiblePrograms[5];
-    //Program* z2PossiblePrograms[5];
-
-    OffProg* offProgLocal;// = new Off();
-    OnProg* onProgLocal;// = new On();
-    ScheduleProg* z1SchedLocal;// = new Sched();
-    ScheduleProg* z2SchedLocal;// = new Sched();
+    OffProg* offProgLocal;
+    OnProg* onProgLocal;
+    ScheduleProg* z1SchedLocal;
+    ScheduleProg* z2SchedLocal;
+    AwayProg* awayProg;
 public:
     // zone: 1, 2. programId: 1: Off,
-    void initialise();
+    Programmer();
     void selectProgram(int zone, ProgramIds programId);
     void getCurrentSetpoint(int zone, time_t now, struct SetPoint& setpoint);
     //void getCurrentSchedule(int zone, int day, float* setPoints);
