@@ -31,11 +31,21 @@
 //#define PROG_ZONE_SELECT        V50
 #define PROG_DAY_SELECT         V51
 #define PROG_SCHEDULE_SELECT    V52
-#define PROG_SCHEDULE_TABLE     V53
-#define PROG_TIME_IP            V54
-#define PROG_TEMP_SELECT        V55
-#define PROG_ADD                V56
-#define PROG_DELETE_SELECTION   V57
+
+#define PROG_TIME_1             V60
+#define PROG_TEMP_1             V61
+#define PROG_TIME_2             V62
+#define PROG_TEMP_2             V63
+#define PROG_TIME_3             V64
+#define PROG_TEMP_3             V65
+#define PROG_TIME_4             V66
+#define PROG_TEMP_4             V67
+#define PROG_TIME_5             V68
+#define PROG_TEMP_5             V69
+#define PROG_TIME_6             V70
+#define PROG_TEMP_6             V71
+#define PROG_TIME_7             V72
+#define PROG_TEMP_7             V73
 
 // Particle IO defines
 #define A_SYSTEMTEMP    A0
@@ -137,27 +147,122 @@ void updateControllers()
 int selectedProgrammingSchedule = 0;
 //int selectedProgrammingZone = 0;
 int selectedProgrammingDay = 0;
-bool selectedProgrammingRows[24] = {0};
+//bool selectedProgrammingRows[24] = {0};
 //int selectedModeZ1 = 0;
 //int selectedModeZ2 = 0;
 
 void refreshProgrammeTable()
 {
-    float scheduleTemps[24] = {0};
-    programmer.getSchedule(selectedProgrammingSchedule, selectedProgrammingDay, scheduleTemps);
-    Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
+    //float scheduleTemps[24] = {0};
+    ProgramPoints points;
+    ProgramPoints* pprogramPoints = &points;
+    //pprogramPoints->startTime[1] = 123;
+    //Serial.printf("requested day index: %d. starttime: %d, temp: %f\n", selectedProgrammingDay, pprogramPoints->startTime[1], pprogramPoints->targetTemp[1]);
+    programmer.getSchedule(selectedProgrammingSchedule, selectedProgrammingDay, pprogramPoints);
+    //Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
+    //Serial.printf("requested day index: %d. starttime: %d, temp: %f\n", selectedProgrammingDay, pprogramPoints->startTime[1], pprogramPoints->targetTemp[1]);
     Serial.printf("sched: %d. day: %d\n", selectedProgrammingSchedule, selectedProgrammingDay);
-    for(int i = 0; i<24; i++)
-    {
-        String hour = String::format("%02d",i);
-        String temp = String::format("%3.1f C", scheduleTemps[i]);
-        Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "add", i, hour, temp);
-        Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "deselect", i);
-        selectedProgrammingRows[i] = false;
-    }
+    char tz[] = "Europe/London";
+    //Serial.printf("time: %d. temp: %3.2f\n", pprogramPoints->startTime[0], pprogramPoints->targetTemp[0]);
+    Blynk.virtualWrite(PROG_TIME_1, pprogramPoints->startTime[0], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_1, pprogramPoints->targetTemp[0]);
+    Blynk.virtualWrite(PROG_TIME_2, pprogramPoints->startTime[1], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_2, pprogramPoints->targetTemp[1]);
+    Blynk.virtualWrite(PROG_TIME_3, pprogramPoints->startTime[2], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_3, pprogramPoints->targetTemp[2]);
+    Blynk.virtualWrite(PROG_TIME_4, pprogramPoints->startTime[3], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_4, pprogramPoints->targetTemp[3]);
+    Blynk.virtualWrite(PROG_TIME_5, pprogramPoints->startTime[4], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_5, pprogramPoints->targetTemp[4]);
+    Blynk.virtualWrite(PROG_TIME_6, pprogramPoints->startTime[5], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_6, pprogramPoints->targetTemp[5]);
+    Blynk.virtualWrite(PROG_TIME_7, pprogramPoints->startTime[6], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_7, pprogramPoints->targetTemp[6]);
+}
 
-    // ToDo: only pick the hour row for the current day.
-    Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "pick", Time.hour());
+BLYNK_WRITE(PROG_TIME_1) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 0, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_1) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 0, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_2) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 1, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_2) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 1, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_3) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 2, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_3) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 2, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_4) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 3, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_4) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 3, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_5) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 4, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_5) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 4, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_6) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 5, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_6) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 5, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_7) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 6, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_7) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 6, temp);
+  updateSetPoints();
 }
 
 BLYNK_WRITE(PROG_DAY_SELECT)
@@ -187,7 +292,7 @@ BLYNK_WRITE(Z2_MODE)
     programmer.selectProgram(2, (ProgramIds)param.asInt());
     updateSetPoints();
 }
-
+/*
 BLYNK_WRITE(PROG_SCHEDULE_TABLE) {
    String cmd = param[0].asStr();
    if (cmd == "select") {
@@ -203,7 +308,8 @@ BLYNK_WRITE(PROG_SCHEDULE_TABLE) {
        //int oldRowIndex = param[1].asInt();
        //int newRowIndex = param[2].asInt();
    }
-}
+}*/
+/*
 BLYNK_WRITE(PROG_TEMP_SELECT)
 {
     for(int i = 0; i<24; i++)
@@ -218,6 +324,7 @@ BLYNK_WRITE(PROG_TEMP_SELECT)
     }
     updateSetPoints();
 }
+*/
 
 /*// Call back for the setpoint.
 BLYNK_WRITE(Z1_SETPOINT) {

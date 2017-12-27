@@ -9,6 +9,12 @@ struct SetPoint {
     float intendedH;
 };
 
+// Holds the temp programms. Array of 7 allows 7 programmable times.
+struct ProgramPoints {
+    long startTime[7]; // in seconds
+    float targetTemp[7];
+};
+
 enum ProgramIds {
     Off = 1,
     On = 2,
@@ -19,31 +25,23 @@ enum ProgramIds {
 
 class Program {
 public:
-    //Program();
-    //~Program();
     virtual void getCurrentSetpoint(time_t now, struct SetPoint& setpoint) = 0;
-    virtual void getSchedule(int day, float* setPoints) = 0;
-    virtual void updateTemp(int day, int hour, float temperature) = 0;
+    virtual void getSchedule(int day, ProgramPoints* programPoints) = 0;
 };
 
 class ProgrammableProg : public Program {
 protected:
-    float ScheduledTemps[7][24];
+    ProgramPoints temperatureProgram[7];
 public:
-    //ProgrammableProg() = 0;
-    //~Schedule();
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    void getSchedule(int day, float* setPoints);
-    void updateTemp(int day, int hour, float temperature);
+    void getSchedule(int day, ProgramPoints* programPoints);
+    void updateTemp(int day, int progIndex, float temperature);
+    void updateTime(int day, int progIndex, long setTime);
 };
 
 class ScheduleProg : public ProgrammableProg {
 public:
     ScheduleProg();
-    //~Schedule();
-    //void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    //void getSchedule(int day, float* setPoints);
-    //void updateTemp(int day, int hour, float temperature);
 };
 
 class AwayProg : public ProgrammableProg {
@@ -54,15 +52,13 @@ public:
 class OffProg : public Program {
 public:
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    void getSchedule(int day, float* setPoints);
-    void updateTemp(int day, int hour, float temperature);
+    void getSchedule(int day, ProgramPoints* programPoints);
 };
 
 class OnProg : public Program {
 public:
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    void getSchedule(int day, float* setPoints);
-    void updateTemp(int day, int hour, float temperature);
+    void getSchedule(int day, ProgramPoints* programPoints);
 };
 
 class Programmer {
@@ -77,10 +73,10 @@ public:
     Programmer();
     void selectProgram(int zone, ProgramIds programId);
     void getCurrentSetpoint(int zone, time_t now, struct SetPoint& setpoint);
-    //void getCurrentSchedule(int zone, int day, float* setPoints);
 
-    void getSchedule(int schedule, int day, float* setPoints);
-    void updateTemp(int schedule, int day, int hour, float temperature);
+    void getSchedule(int schedule, int day, ProgramPoints* programPoints);
+    void updateTemp(int schedule, int day, int progIndex, float temperature);
+    void updateTime(int schedule, int day, int progIndex, long setTime);
 };
 
 #endif
