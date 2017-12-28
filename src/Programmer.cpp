@@ -92,7 +92,7 @@ ScheduleProg::ScheduleProg()
         temperatureProgram[j].targetTemp[0] = 20.0;
         temperatureProgram[j].startTime[1] = 3 * 60 * 60;
         temperatureProgram[j].targetTemp[1] = 21.0;
-        temperatureProgram[j].startTime[2] = 5 * 60 * 60;
+        temperatureProgram[j].startTime[2] = 6 * 60 * 60;
         temperatureProgram[j].targetTemp[2] = 22.0;
         temperatureProgram[j].startTime[3] = 8.5 * 60 * 60;
         temperatureProgram[j].targetTemp[3] = 17.0;
@@ -130,15 +130,11 @@ AwayProg::AwayProg()
 void ProgrammableProg::getSchedule(int day, ProgramPoints* programPoints)
 {
     --day;
-    Serial.printf("requested day index: %d. starttime: %d, temp: %f\n", day, programPoints->startTime[1], programPoints->targetTemp[1]);
-    Serial.printf("requested day index: %d. starttime: %d, temp: %f\n", day, temperatureProgram[day].startTime[1], temperatureProgram[day].targetTemp[1]);
-    //programPoints = &temperatureProgram[day];
     for(int i = 0; i < 7; i++)
     {
         programPoints->startTime[i] = temperatureProgram[day].startTime[i];
         programPoints->targetTemp[i] = temperatureProgram[day].targetTemp[i];
     }
-    Serial.printf("requested day index: %d. starttime: %d, temp: %f\n", day, programPoints->startTime[1], programPoints->targetTemp[1]);
 }
 
 void ProgrammableProg::updateTemp(int day, int progIndex, float temperature)

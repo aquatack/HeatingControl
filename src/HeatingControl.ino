@@ -145,25 +145,15 @@ void updateControllers()
 }
 
 int selectedProgrammingSchedule = 0;
-//int selectedProgrammingZone = 0;
 int selectedProgrammingDay = 0;
-//bool selectedProgrammingRows[24] = {0};
-//int selectedModeZ1 = 0;
-//int selectedModeZ2 = 0;
 
 void refreshProgrammeTable()
 {
-    //float scheduleTemps[24] = {0};
     ProgramPoints points;
     ProgramPoints* pprogramPoints = &points;
-    //pprogramPoints->startTime[1] = 123;
-    //Serial.printf("requested day index: %d. starttime: %d, temp: %f\n", selectedProgrammingDay, pprogramPoints->startTime[1], pprogramPoints->targetTemp[1]);
     programmer.getSchedule(selectedProgrammingSchedule, selectedProgrammingDay, pprogramPoints);
-    //Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
-    //Serial.printf("requested day index: %d. starttime: %d, temp: %f\n", selectedProgrammingDay, pprogramPoints->startTime[1], pprogramPoints->targetTemp[1]);
     Serial.printf("sched: %d. day: %d\n", selectedProgrammingSchedule, selectedProgrammingDay);
     char tz[] = "Europe/London";
-    //Serial.printf("time: %d. temp: %3.2f\n", pprogramPoints->startTime[0], pprogramPoints->targetTemp[0]);
     Blynk.virtualWrite(PROG_TIME_1, pprogramPoints->startTime[0], 0, tz);
     Blynk.virtualWrite(PROG_TEMP_1, pprogramPoints->targetTemp[0]);
     Blynk.virtualWrite(PROG_TIME_2, pprogramPoints->startTime[1], 0, tz);
@@ -287,44 +277,10 @@ BLYNK_WRITE(Z1_MODE)
 
 BLYNK_WRITE(Z2_MODE)
 {
-    //selectedModeZ2 = param.asInt();
     Serial.printf("Selected Z2 mode: %d\n", param.asInt());
     programmer.selectProgram(2, (ProgramIds)param.asInt());
     updateSetPoints();
 }
-/*
-BLYNK_WRITE(PROG_SCHEDULE_TABLE) {
-   String cmd = param[0].asStr();
-   if (cmd == "select") {
-       //row in table was selected.
-       selectedProgrammingRows[param[1].asInt()] = true;
-   }
-   if (cmd == "deselect") {
-       //row in table was deselected.
-       selectedProgrammingRows[param[1].asInt()] = false;
-   }
-   if (cmd == "order") {
-       //rows in table where reodered
-       //int oldRowIndex = param[1].asInt();
-       //int newRowIndex = param[2].asInt();
-   }
-}*/
-/*
-BLYNK_WRITE(PROG_TEMP_SELECT)
-{
-    for(int i = 0; i<24; i++)
-    {
-        if(selectedProgrammingRows[i])
-        {
-            programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, i, param.asFloat());
-            String hour = String::format("%02d",i);
-            String temp = String::format("%3.1f C", param.asFloat());
-            Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "update", i, hour, temp);
-        }
-    }
-    updateSetPoints();
-}
-*/
 
 /*// Call back for the setpoint.
 BLYNK_WRITE(Z1_SETPOINT) {
@@ -397,8 +353,6 @@ void setup()
     zone2Temp.timestamp = 0;
 
     // Setup the setpoints
-    //initialiseScheduledTemps();
-    //programmer.initialise();
     programmer.selectProgram(1, ProgramIds::On);
     programmer.selectProgram(2, ProgramIds::Schedule);
     updateSetPoints();
