@@ -3,6 +3,9 @@
 
 #include "Particle.h"
 
+// ToDo: The L&H fields aren't set by the programs. Instead they are set by the controller.
+// Use two separate structures. One like this for the controller, and one with just intended
+// for the programs to use.
 struct SetPoint {
     float intended;
     float intendedL;
@@ -20,16 +23,25 @@ enum ProgramIds {
     On = 2,
     Schedule = 3,
     Away = 4,
-    AllDay = 5
+    AllDay = 5,
+    OneHrOverride = 6
+};
+
+enum Schedules {
+    Zone1 = 1,
+    Zone2 = 2,
+    AwaySched = 3
 };
 
 class Program {
 public:
     virtual void getCurrentSetpoint(time_t now, struct SetPoint& setpoint) = 0;
+};
+class ViewableProgram : public Program {
+public:
     virtual void getSchedule(int day, ProgramPoints* programPoints) = 0;
 };
-
-class ProgrammableProg : public Program {
+class ProgrammableProg : public ViewableProgram {
 protected:
     ProgramPoints temperatureProgram[7];
 public:
@@ -38,27 +50,32 @@ public:
     void updateTemp(int day, int progIndex, float temperature);
     void updateTime(int day, int progIndex, long setTime);
 };
-
+class SetableProg : public Program {
+protected:
+    float setPoint;
+public:
+    virtual void SetSetpoint(float temperature) = 0;
+};
 class ScheduleProg : public ProgrammableProg {
 public:
     ScheduleProg();
 };
-
 class AwayProg : public ProgrammableProg {
 public:
     AwayProg();
 };
-
 class OffProg : public Program {
 public:
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    void getSchedule(int day, ProgramPoints* programPoints);
 };
-
 class OnProg : public Program {
 public:
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    void getSchedule(int day, ProgramPoints* programPoints);
+};
+class TemporaryProg : public SetableProg {
+public:
+    void SetSetpoint(float temperature);
+    void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
 };
 
 class Programmer {
@@ -68,6 +85,9 @@ class Programmer {
     ScheduleProg* z1SchedLocal;
     ScheduleProg* z2SchedLocal;
     AwayProg* awayProg;
+
+    Program* previousProg[2];
+    TemporaryProg* tempProg[2];
 public:
     // zone: 1, 2. programId: 1: Off,
     Programmer();
@@ -77,6 +97,9 @@ public:
     void getSchedule(int schedule, int day, ProgramPoints* programPoints);
     void updateTemp(int schedule, int day, int progIndex, float temperature);
     void updateTime(int schedule, int day, int progIndex, long setTime);
+
+    void setOverride(int zone, float temp);
+    void resetOverride(int zone);
 };
 
 #endif

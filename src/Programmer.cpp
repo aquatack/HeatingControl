@@ -1,5 +1,7 @@
 #include "Programmer.h"
 
+const float OFF_TEMP = 5.0f;
+const float ON_TEMP  = 50.0f;
 
 // ToDo: make static.
 Programmer::Programmer()
@@ -9,6 +11,8 @@ Programmer::Programmer()
     z1SchedLocal = new ScheduleProg();
     z2SchedLocal = new ScheduleProg();
     awayProg = new AwayProg();
+    tempProg[0] = new TemporaryProg();
+    tempProg[1] = new TemporaryProg();
 }
 
 void Programmer::selectProgram(int zone, ProgramIds programId)
@@ -42,6 +46,21 @@ void Programmer::selectProgram(int zone, ProgramIds programId)
     }
 }
 
+void Programmer::setOverride(int zone, float temp)
+{
+    Serial.printf("in Programmer::setOverride1\n");
+    //previousProg[--zone] = currentProgram[--zone];
+    Serial.printf("in Programmer::setOverride2\n");
+    //currentProgram[--zone] = tempProg[--zone];
+    Serial.printf("in Programmer::setOverride3\n");
+    tempProg[--zone]->SetSetpoint(temp);
+}
+
+void Programmer::resetOverride(int zone)
+{
+    currentProgram[--zone] = z2SchedLocal; //previousProg[--zone];
+}
+
 void Programmer::getCurrentSetpoint(int zone, time_t now, struct SetPoint& setpoint)
 {
     Serial.printf("Getting current set point for zone %d\n", zone);
@@ -50,12 +69,12 @@ void Programmer::getCurrentSetpoint(int zone, time_t now, struct SetPoint& setpo
 
 void Programmer::getSchedule(int schedule, int day, ProgramPoints* programPoints)
 {
-    if(schedule == 1) {
+    if(schedule == Schedules::Zone1) {
         z1SchedLocal->getSchedule(day, programPoints);
-    } else if(schedule == 2) {
+    } else if(schedule == Schedules::Zone2) {
         Serial.printf("getting zone 2 schedule.\n" );
         z2SchedLocal->getSchedule(day, programPoints);
-    } else if(schedule == 3) {
+    } else if(schedule == Schedules::AwaySched) {
         awayProg->getSchedule(day, programPoints);
     }
 
@@ -63,21 +82,21 @@ void Programmer::getSchedule(int schedule, int day, ProgramPoints* programPoints
 }
 void Programmer::updateTemp(int schedule, int day, int progIndex, float temperature)
 {
-    if(schedule == 1) {
+    if(schedule == Schedules::Zone1) {
         z1SchedLocal->updateTemp(day, progIndex, temperature);
-    } else if(schedule == 2) {
+    } else if(schedule == Schedules::Zone2) {
         z2SchedLocal->updateTemp(day, progIndex, temperature);
-    } else if(schedule == 3) {
+    } else if(schedule == Schedules::AwaySched) {
         awayProg->updateTemp(day, progIndex, temperature);
     }
 }
 void Programmer::updateTime(int schedule, int day, int progIndex, long setTime)
 {
-    if(schedule == 1) {
+    if(schedule == Schedules::Zone1) {
         z1SchedLocal->updateTime(day, progIndex, setTime);
-    } else if(schedule == 2) {
+    } else if(schedule == Schedules::Zone2) {
         z2SchedLocal->updateTime(day, progIndex, setTime);
-    } else if(schedule == 3) {
+    } else if(schedule == Schedules::AwaySched) {
         awayProg->updateTime(day, progIndex, setTime);
     }
 }
@@ -162,7 +181,7 @@ void ProgrammableProg::getCurrentSetpoint(time_t now, struct SetPoint& setpoint)
     long nowInSecs = minute * 60 + hour * 3600;
     int schedIndex = 0;
     float selectedTemp = 0;
-    while(temperatureProgram[weekday].startTime[schedIndex] < nowInSecs && schedIndex < 7)
+    while(temperatureProgram[weekday].startTime[schedIndex] <= nowInSecs && schedIndex < 7)
     {
         selectedTemp = temperatureProgram[weekday].targetTemp[schedIndex];
         schedIndex++;
@@ -175,45 +194,20 @@ void ProgrammableProg::getCurrentSetpoint(time_t now, struct SetPoint& setpoint)
 
 void OffProg::getCurrentSetpoint(time_t now, struct SetPoint& setpoint)  {
     Serial.printf("In OffProg::getCurrentSetpoint.\n");
-    setpoint.intended = 0.0f;
+    setpoint.intended = OFF_TEMP;
 }
-void OffProg::getSchedule(int day, ProgramPoints* programPoints)  {
-    float offTemp = 0.00f;
-    programPoints->startTime[0] = 0;
-    programPoints->targetTemp[0] = offTemp;
-    programPoints->startTime[1] = 0 * 60 * 60;
-    programPoints->targetTemp[1] = offTemp;
-    programPoints->startTime[2] = 0 * 60 * 60;
-    programPoints->targetTemp[2] = offTemp;
-    programPoints->startTime[3] = 0 * 60 * 60;
-    programPoints->targetTemp[3] = offTemp;
-    programPoints->startTime[4] = 0 * 60 * 60;
-    programPoints->targetTemp[4] = offTemp;
-    programPoints->startTime[5] = 0 * 60 * 60;
-    programPoints->targetTemp[5] = offTemp;
-    programPoints->startTime[6] = 0 * 60 * 60;
-    programPoints->targetTemp[6] = offTemp;
-}
-
 
 void OnProg::getCurrentSetpoint(time_t now, struct SetPoint& setpoint)  {
     Serial.printf("In OnProg::getCurrentSetpoint.\n");
-    setpoint.intended = 999.0f;
+    setpoint.intended = ON_TEMP;
 }
-void OnProg::getSchedule(int day, ProgramPoints* programPoints)  {
-    float onTemp = 100.00f;
-    programPoints->startTime[0] = 0;
-    programPoints->targetTemp[0] = onTemp;
-    programPoints->startTime[1] = 0 * 60 * 60;
-    programPoints->targetTemp[1] = onTemp;
-    programPoints->startTime[2] = 0 * 60 * 60;
-    programPoints->targetTemp[2] = onTemp;
-    programPoints->startTime[3] = 0 * 60 * 60;
-    programPoints->targetTemp[3] = onTemp;
-    programPoints->startTime[4] = 0 * 60 * 60;
-    programPoints->targetTemp[4] = onTemp;
-    programPoints->startTime[5] = 0 * 60 * 60;
-    programPoints->targetTemp[5] = onTemp;
-    programPoints->startTime[6] = 0 * 60 * 60;
-    programPoints->targetTemp[6] = onTemp;
+
+void TemporaryProg::SetSetpoint(float temperature)
+{
+    Serial.printf("In TemporaryProg::SetSetpoint. Setting %3.2f\n",temperature);
+    setPoint = temperature;
+}
+void TemporaryProg::getCurrentSetpoint(time_t now, struct SetPoint& setpoint)  {
+    Serial.printf("In OnProg::getCurrentSetpoint.\n");
+    setpoint.intended = setPoint;
 }

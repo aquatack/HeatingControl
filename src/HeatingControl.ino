@@ -26,9 +26,10 @@
 #define Z2_BACKOFFT     V14
 #define Z1_MODE         V15
 #define Z2_MODE         V16
+#define Z1_TEMP_OVERRIDE V17
+#define Z2_TEMP_OVERRIDE V18
 
 // Blynk Programming channels.
-//#define PROG_ZONE_SELECT        V50
 #define PROG_DAY_SELECT         V51
 #define PROG_SCHEDULE_SELECT    V52
 
@@ -52,8 +53,7 @@
 #define D_ZONE1_CTRL    D0
 #define D_ZONE2_CTRL    D1
 
-
-// Timing interval to capture the system temperature (s).
+// System timing intervals (ms).
 const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000;
 const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000;
 const long  SETPOINT_UPDATE_INTERVAL  = 60 * 1000;
@@ -64,6 +64,7 @@ ZoneController  zone1Controller = ZoneController(D_ZONE1_CTRL);
 ZoneController  zone2Controller = ZoneController(D_ZONE2_CTRL);
 SetPoint        z1SetPoint;
 SetPoint        z2SetPoint;
+time_t          overrideTime[2] = {0};
 BlynkTimer      timer;
 Programmer      programmer = Programmer();
 
@@ -84,7 +85,7 @@ void updateZ1BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
         z1Intent.on();
     else
         z1Intent.off();
-    //Blynk.virtualWrite(Z1_BACKOFFT, state.zoneBackoffT);
+
     Blynk.virtualWrite(Z1_SETPOINT, state.setPoint.intended);
     Blynk.virtualWrite(Z1_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z1_SETPOINTH, state.setPoint.intendedH);
@@ -102,7 +103,7 @@ void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
         z2Intent.on();
     else
         z2Intent.off();
-    //Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
+
     Blynk.virtualWrite(Z2_SETPOINT, state.setPoint.intended);
     Blynk.virtualWrite(Z2_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);
@@ -138,8 +139,7 @@ void updateControllers()
     Serial.printf("Z1 setpoint: %3.2f, Z2 setpoint: %3.2f.\n", z1SetPoint.intended, z2SetPoint.intended);
     time_t now = Time.now();
     ControllerState state;
-    //zone1Controller.UpdateSystem(now, zone1Temp, z1SetPoint, state);
-    //updateZ1BlynkClient(zone1Temp, state);
+
     zone2Controller.UpdateSystem(now, zone2Temp, z2SetPoint, state);
     updateZ2BlynkClient(zone2Temp, state);
 }
@@ -282,6 +282,23 @@ BLYNK_WRITE(Z2_MODE)
     updateSetPoints();
 }
 
+BLYNK_WRITE(Z1_TEMP_OVERRIDE)
+{
+    Blynk.virtualWrite(Z1_MODE, ProgramIds::OneHrOverride);
+}
+BLYNK_WRITE(Z2_TEMP_OVERRIDE)
+{
+    // select override program
+    // Set temp of override
+    Serial.printf("About to call setOverride1\n");
+    overrideTime[1] = Time.now();
+    Serial.printf("About to call setOverride2\n");
+    programmer.setOverride(2, param.asFloat());
+    // switch mode to override.
+    Blynk.virtualWrite(Z2_MODE, ProgramIds::OneHrOverride);
+    updateSetPoints();
+}
+
 /*// Call back for the setpoint.
 BLYNK_WRITE(Z1_SETPOINT) {
     z1SetPoint.intended = param.asFloat();
@@ -310,12 +327,29 @@ void measureSysTemp()
   Serial.printf("System temp: %3.2fC\n", systemTemp);
 }
 
+// Annoyingly, because we can't set blynk state outside of this file,
+// we have to maintain the override state here and check and revert it
+// instead of inside the programmer class.
 void updateSetPoints()
 {
     Serial.printf("UpdateSetPoints.\n");
     time_t now = Time.now();
+    // Check if the override is active and has expired.
+    for(int i = 0; i<2; i++)
+    {
+        Serial.printf("override: %d. resetting zone %d\n", overrideTime[i], Z1_MODE + i);
+        if(overrideTime[i] > 0 && now > overrideTime[i] + 10)
+        {
+            Serial.printf("resetting zone %d\n", Z1_MODE + i);
+            programmer.resetOverride(i+1);
+            overrideTime[i] = 0;
+            Blynk.virtualWrite(Z1_MODE + i, ProgramIds::Schedule);
+        }
+    }
     programmer.getCurrentSetpoint(1, now, z1SetPoint);
     programmer.getCurrentSetpoint(2, now, z2SetPoint);
+    Blynk.virtualWrite(Z1_TEMP_OVERRIDE, z1SetPoint.intended);
+    Blynk.virtualWrite(Z2_TEMP_OVERRIDE, z2SetPoint.intended);
     Serial.printf("Retrieved setpoints 1: %3.2f, 2: %3.2f\n", z1SetPoint.intended, z2SetPoint.intended);
     updateControllers();
 }
@@ -335,15 +369,11 @@ void setup()
     // System timers for events. Ignore the timerId.
     timer.setInterval(SYS_TEMP_CAPTURE_INTERVAL, measureSysTemp);
     timer.setInterval(SETPOINT_UPDATE_INTERVAL, updateSetPoints);
-    //timer.setInterval(SYS_STATE_UPDATE_INTERVAL, updateControllers); //removing for now as perhaps not necessary.
 
     // Setup the Controllers.
     time_t t = Time.now();
     zone1Controller.InitialiseController(t);
     zone2Controller.InitialiseController(t);
-
-    //z1SetPoint.intended = 21.0;
-    //z2SetPoint.intended = 21.0;
 
     zone1Temp.temperature = -999.0;
     zone1Temp.timestamp = 0;
@@ -352,7 +382,7 @@ void setup()
     zone2Temp.temperature = -999.0;
     zone2Temp.timestamp = 0;
 
-    // Setup the setpoints
+    // Set the heating to its default mode.
     programmer.selectProgram(1, ProgramIds::On);
     programmer.selectProgram(2, ProgramIds::Schedule);
     updateSetPoints();
