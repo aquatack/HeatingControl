@@ -23,7 +23,7 @@ enum ProgramIds {
     On = 2,
     Schedule = 3,
     Away = 4,
-    AllDay = 5,
+    //AllDay = 5,
     OneHrOverride = 6
 };
 
@@ -36,6 +36,7 @@ enum Schedules {
 class Program {
 public:
     virtual void getCurrentSetpoint(time_t now, struct SetPoint& setpoint) = 0;
+    virtual int getProgramId() = 0;
 };
 class ViewableProgram : public Program {
 public:
@@ -59,23 +60,28 @@ public:
 class ScheduleProg : public ProgrammableProg {
 public:
     ScheduleProg();
+    int getProgramId();
 };
 class AwayProg : public ProgrammableProg {
 public:
     AwayProg();
+    int getProgramId();
 };
 class OffProg : public Program {
 public:
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
+    int getProgramId();
 };
 class OnProg : public Program {
 public:
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
+    int getProgramId();
 };
 class TemporaryProg : public SetableProg {
 public:
     void SetSetpoint(float temperature);
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
+    int getProgramId();
 };
 
 class Programmer {
@@ -92,6 +98,7 @@ public:
     // zone: 1, 2. programId: 1: Off,
     Programmer();
     void selectProgram(int zone, ProgramIds programId);
+    int getProgramId(int zone);
     void getCurrentSetpoint(int zone, time_t now, struct SetPoint& setpoint);
 
     void getSchedule(int schedule, int day, ProgramPoints* programPoints);

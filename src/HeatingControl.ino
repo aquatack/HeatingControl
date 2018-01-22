@@ -1,7 +1,6 @@
 
 #define BLYNK_PRINT Serial  // Set serial output for debug prints
 //#define BLYNK_DEBUG       // Uncomment this to see detailed prints
-
 #include <blynk.h>
 #include "BlynkAuth.h"
 #include "SystemTemp.h"
@@ -57,6 +56,7 @@
 const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000;
 const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000;
 const long  SETPOINT_UPDATE_INTERVAL  = 60 * 1000;
+const long  OVERRIDE_TIMEOUT          = 60; // mins
 
 RemoteTemp      zone1Temp;
 RemoteTemp      zone2Temp;
@@ -290,9 +290,7 @@ BLYNK_WRITE(Z2_TEMP_OVERRIDE)
 {
     // select override program
     // Set temp of override
-    Serial.printf("About to call setOverride1\n");
     overrideTime[1] = Time.now();
-    Serial.printf("About to call setOverride2\n");
     programmer.setOverride(2, param.asFloat());
     // switch mode to override.
     Blynk.virtualWrite(Z2_MODE, ProgramIds::OneHrOverride);
@@ -334,16 +332,17 @@ void updateSetPoints()
 {
     Serial.printf("UpdateSetPoints.\n");
     time_t now = Time.now();
-    // Check if the override is active and has expired.
+    // Check if the override is active and has expired. Reset if it has.
     for(int i = 0; i<2; i++)
     {
-        Serial.printf("override: %d. resetting zone %d\n", overrideTime[i], Z1_MODE + i);
-        if(overrideTime[i] > 0 && now > overrideTime[i] + 10)
+        if(overrideTime[i] > 0 && now > overrideTime[i] + (OVERRIDE_TIMEOUT * 60))
         {
-            Serial.printf("resetting zone %d\n", Z1_MODE + i);
+            Serial.printf("override: %d. resetting zone %d\n", overrideTime[i], Z1_MODE + i);
             programmer.resetOverride(i+1);
             overrideTime[i] = 0;
-            Blynk.virtualWrite(Z1_MODE + i, ProgramIds::Schedule);
+            int mode = programmer.getProgramId(i+1);
+            Serial.printf("Restting to: %d.\n", mode);
+            Blynk.virtualWrite(Z1_MODE + i, mode);
         }
     }
     programmer.getCurrentSetpoint(1, now, z1SetPoint);
