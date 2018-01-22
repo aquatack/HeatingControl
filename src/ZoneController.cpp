@@ -11,7 +11,6 @@ void ZoneController::InitialiseController(time_t now)
     LastHeatingToggleTime = now;
 }
 
-
 void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, SetPoint setPoint, ControllerState &state)
 {
     state.measureTemp = measuredTemperature;
@@ -36,7 +35,7 @@ void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, Se
         Serial.printf("Measured: %3.2f, Target: %3.2f. Too Cold. Trying to switch on Zone %d.\n",
             measuredTemperature.temperature,
             state.setPoint.intended,
-            ZoneControlOutput);
+            ZoneControlOutput+1);
         state.zoneBackoffT = SwitchHeating(now, true);
         state.zoneIntent = true;
         state.zoneOn = digitalRead(ZoneControlOutput);
@@ -47,14 +46,12 @@ void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, Se
         Serial.printf("Measured: %3.2f, Target: %3.2f. Too Hot. Trying to switch off Zone %d.\n",
             measuredTemperature.temperature,
             state.setPoint.intended,
-            ZoneControlOutput);
+            ZoneControlOutput+1);
         state.zoneBackoffT = SwitchHeating(now, false);
         state.zoneIntent = false;
         state.zoneOn = digitalRead(ZoneControlOutput);
         return;
     }
-
-
     return;
 }
 

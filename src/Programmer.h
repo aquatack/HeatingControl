@@ -3,10 +3,19 @@
 
 #include "Particle.h"
 
+// ToDo: The L&H fields aren't set by the programs. Instead they are set by the controller.
+// Use two separate structures. One like this for the controller, and one with just intended
+// for the programs to use.
 struct SetPoint {
     float intended;
     float intendedL;
     float intendedH;
+};
+
+// Holds the temp programms. Array of 7 allows 7 programmable times.
+struct ProgramPoints {
+    long startTime[7]; // in seconds
+    float targetTemp[7];
 };
 
 enum ProgramIds {
@@ -14,55 +23,65 @@ enum ProgramIds {
     On = 2,
     Schedule = 3,
     Away = 4,
-    AllDay = 5
+    //AllDay = 5,
+    OneHrOverride = 6
+};
+
+enum Schedules {
+    Zone1 = 1,
+    Zone2 = 2,
+    AwaySched = 3
 };
 
 class Program {
 public:
-    //Program();
-    //~Program();
     virtual void getCurrentSetpoint(time_t now, struct SetPoint& setpoint) = 0;
-    virtual void getSchedule(int day, float* setPoints) = 0;
-    virtual void updateTemp(int day, int hour, float temperature) = 0;
+    virtual int getProgramId() = 0;
 };
-
-class ProgrammableProg : public Program {
-protected:
-    float ScheduledTemps[7][24];
+class ViewableProgram : public Program {
 public:
-    //ProgrammableProg() = 0;
-    //~Schedule();
-    void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    void getSchedule(int day, float* setPoints);
-    void updateTemp(int day, int hour, float temperature);
+    virtual void getSchedule(int day, ProgramPoints* programPoints) = 0;
 };
-
+class ProgrammableProg : public ViewableProgram {
+protected:
+    ProgramPoints temperatureProgram[7];
+public:
+    void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
+    void getSchedule(int day, ProgramPoints* programPoints);
+    void updateTemp(int day, int progIndex, float temperature);
+    void updateTime(int day, int progIndex, long setTime);
+};
+class SetableProg : public Program {
+protected:
+    float setPoint;
+public:
+    virtual void SetSetpoint(float temperature) = 0;
+};
 class ScheduleProg : public ProgrammableProg {
 public:
     ScheduleProg();
-    //~Schedule();
-    //void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    //void getSchedule(int day, float* setPoints);
-    //void updateTemp(int day, int hour, float temperature);
+    int getProgramId();
 };
-
 class AwayProg : public ProgrammableProg {
 public:
     AwayProg();
+    int getProgramId();
 };
-
 class OffProg : public Program {
 public:
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    void getSchedule(int day, float* setPoints);
-    void updateTemp(int day, int hour, float temperature);
+    int getProgramId();
 };
-
 class OnProg : public Program {
 public:
     void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
-    void getSchedule(int day, float* setPoints);
-    void updateTemp(int day, int hour, float temperature);
+    int getProgramId();
+};
+class TemporaryProg : public SetableProg {
+public:
+    void SetSetpoint(float temperature);
+    void getCurrentSetpoint(time_t now, struct SetPoint& setpoint);
+    int getProgramId();
 };
 
 class Programmer {
@@ -72,15 +91,22 @@ class Programmer {
     ScheduleProg* z1SchedLocal;
     ScheduleProg* z2SchedLocal;
     AwayProg* awayProg;
+
+    Program* previousProg[2];
+    TemporaryProg* tempProg[2];
 public:
     // zone: 1, 2. programId: 1: Off,
     Programmer();
     void selectProgram(int zone, ProgramIds programId);
+    int getProgramId(int zone);
     void getCurrentSetpoint(int zone, time_t now, struct SetPoint& setpoint);
-    //void getCurrentSchedule(int zone, int day, float* setPoints);
 
-    void getSchedule(int schedule, int day, float* setPoints);
-    void updateTemp(int schedule, int day, int hour, float temperature);
+    void getSchedule(int schedule, int day, ProgramPoints* programPoints);
+    void updateTemp(int schedule, int day, int progIndex, float temperature);
+    void updateTime(int schedule, int day, int progIndex, long setTime);
+
+    void setOverride(int zone, float temp);
+    void resetOverride(int zone);
 };
 
 #endif

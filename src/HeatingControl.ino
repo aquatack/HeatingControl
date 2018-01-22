@@ -1,7 +1,6 @@
 
 #define BLYNK_PRINT Serial  // Set serial output for debug prints
 //#define BLYNK_DEBUG       // Uncomment this to see detailed prints
-
 #include <blynk.h>
 #include "BlynkAuth.h"
 #include "SystemTemp.h"
@@ -26,27 +25,38 @@
 #define Z2_BACKOFFT     V14
 #define Z1_MODE         V15
 #define Z2_MODE         V16
+#define Z1_TEMP_OVERRIDE V17
+#define Z2_TEMP_OVERRIDE V18
 
 // Blynk Programming channels.
-//#define PROG_ZONE_SELECT        V50
 #define PROG_DAY_SELECT         V51
 #define PROG_SCHEDULE_SELECT    V52
-#define PROG_SCHEDULE_TABLE     V53
-#define PROG_TIME_IP            V54
-#define PROG_TEMP_SELECT        V55
-#define PROG_ADD                V56
-#define PROG_DELETE_SELECTION   V57
+
+#define PROG_TIME_1             V60
+#define PROG_TEMP_1             V61
+#define PROG_TIME_2             V62
+#define PROG_TEMP_2             V63
+#define PROG_TIME_3             V64
+#define PROG_TEMP_3             V65
+#define PROG_TIME_4             V66
+#define PROG_TEMP_4             V67
+#define PROG_TIME_5             V68
+#define PROG_TEMP_5             V69
+#define PROG_TIME_6             V70
+#define PROG_TEMP_6             V71
+#define PROG_TIME_7             V72
+#define PROG_TEMP_7             V73
 
 // Particle IO defines
 #define A_SYSTEMTEMP    A0
 #define D_ZONE1_CTRL    D0
 #define D_ZONE2_CTRL    D1
 
-
-// Timing interval to capture the system temperature (s).
+// System timing intervals (ms).
 const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000;
 const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000;
 const long  SETPOINT_UPDATE_INTERVAL  = 60 * 1000;
+const long  OVERRIDE_TIMEOUT          = 60; // mins
 
 RemoteTemp      zone1Temp;
 RemoteTemp      zone2Temp;
@@ -54,6 +64,7 @@ ZoneController  zone1Controller = ZoneController(D_ZONE1_CTRL);
 ZoneController  zone2Controller = ZoneController(D_ZONE2_CTRL);
 SetPoint        z1SetPoint;
 SetPoint        z2SetPoint;
+time_t          overrideTime[2] = {0};
 BlynkTimer      timer;
 Programmer      programmer = Programmer();
 
@@ -74,7 +85,7 @@ void updateZ1BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
         z1Intent.on();
     else
         z1Intent.off();
-    //Blynk.virtualWrite(Z1_BACKOFFT, state.zoneBackoffT);
+
     Blynk.virtualWrite(Z1_SETPOINT, state.setPoint.intended);
     Blynk.virtualWrite(Z1_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z1_SETPOINTH, state.setPoint.intendedH);
@@ -92,7 +103,7 @@ void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
         z2Intent.on();
     else
         z2Intent.off();
-    //Blynk.virtualWrite(Z2_BACKOFFT, state.zoneBackoffT);
+
     Blynk.virtualWrite(Z2_SETPOINT, state.setPoint.intended);
     Blynk.virtualWrite(Z2_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);
@@ -128,36 +139,120 @@ void updateControllers()
     Serial.printf("Z1 setpoint: %3.2f, Z2 setpoint: %3.2f.\n", z1SetPoint.intended, z2SetPoint.intended);
     time_t now = Time.now();
     ControllerState state;
-    //zone1Controller.UpdateSystem(now, zone1Temp, z1SetPoint, state);
-    //updateZ1BlynkClient(zone1Temp, state);
+
     zone2Controller.UpdateSystem(now, zone2Temp, z2SetPoint, state);
     updateZ2BlynkClient(zone2Temp, state);
 }
 
 int selectedProgrammingSchedule = 0;
-//int selectedProgrammingZone = 0;
 int selectedProgrammingDay = 0;
-bool selectedProgrammingRows[24] = {0};
-//int selectedModeZ1 = 0;
-//int selectedModeZ2 = 0;
 
 void refreshProgrammeTable()
 {
-    float scheduleTemps[24] = {0};
-    programmer.getSchedule(selectedProgrammingSchedule, selectedProgrammingDay, scheduleTemps);
-    Blynk.virtualWrite(PROG_SCHEDULE_TABLE,"clr");
+    ProgramPoints points;
+    ProgramPoints* pprogramPoints = &points;
+    programmer.getSchedule(selectedProgrammingSchedule, selectedProgrammingDay, pprogramPoints);
     Serial.printf("sched: %d. day: %d\n", selectedProgrammingSchedule, selectedProgrammingDay);
-    for(int i = 0; i<24; i++)
-    {
-        String hour = String::format("%02d",i);
-        String temp = String::format("%3.1f C", scheduleTemps[i]);
-        Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "add", i, hour, temp);
-        Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "deselect", i);
-        selectedProgrammingRows[i] = false;
-    }
+    char tz[] = "Europe/London";
+    Blynk.virtualWrite(PROG_TIME_1, pprogramPoints->startTime[0], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_1, pprogramPoints->targetTemp[0]);
+    Blynk.virtualWrite(PROG_TIME_2, pprogramPoints->startTime[1], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_2, pprogramPoints->targetTemp[1]);
+    Blynk.virtualWrite(PROG_TIME_3, pprogramPoints->startTime[2], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_3, pprogramPoints->targetTemp[2]);
+    Blynk.virtualWrite(PROG_TIME_4, pprogramPoints->startTime[3], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_4, pprogramPoints->targetTemp[3]);
+    Blynk.virtualWrite(PROG_TIME_5, pprogramPoints->startTime[4], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_5, pprogramPoints->targetTemp[4]);
+    Blynk.virtualWrite(PROG_TIME_6, pprogramPoints->startTime[5], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_6, pprogramPoints->targetTemp[5]);
+    Blynk.virtualWrite(PROG_TIME_7, pprogramPoints->startTime[6], 0, tz);
+    Blynk.virtualWrite(PROG_TEMP_7, pprogramPoints->targetTemp[6]);
+}
 
-    // ToDo: only pick the hour row for the current day.
-    Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "pick", Time.hour());
+BLYNK_WRITE(PROG_TIME_1) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 0, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_1) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 0, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_2) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 1, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_2) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 1, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_3) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 2, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_3) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 2, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_4) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 3, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_4) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 3, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_5) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 4, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_5) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 4, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_6) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 5, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_6) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 5, temp);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TIME_7) {
+  long startTimeInSecs = param[0].asLong();
+  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 6, startTimeInSecs);
+  updateSetPoints();
+}
+BLYNK_WRITE(PROG_TEMP_7) {
+  float temp = param[0].asFloat();
+  Serial.printf("Received temp setting: %f\n",temp);
+  programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, 6, temp);
+  updateSetPoints();
 }
 
 BLYNK_WRITE(PROG_DAY_SELECT)
@@ -182,40 +277,23 @@ BLYNK_WRITE(Z1_MODE)
 
 BLYNK_WRITE(Z2_MODE)
 {
-    //selectedModeZ2 = param.asInt();
     Serial.printf("Selected Z2 mode: %d\n", param.asInt());
     programmer.selectProgram(2, (ProgramIds)param.asInt());
     updateSetPoints();
 }
 
-BLYNK_WRITE(PROG_SCHEDULE_TABLE) {
-   String cmd = param[0].asStr();
-   if (cmd == "select") {
-       //row in table was selected.
-       selectedProgrammingRows[param[1].asInt()] = true;
-   }
-   if (cmd == "deselect") {
-       //row in table was deselected.
-       selectedProgrammingRows[param[1].asInt()] = false;
-   }
-   if (cmd == "order") {
-       //rows in table where reodered
-       //int oldRowIndex = param[1].asInt();
-       //int newRowIndex = param[2].asInt();
-   }
-}
-BLYNK_WRITE(PROG_TEMP_SELECT)
+BLYNK_WRITE(Z1_TEMP_OVERRIDE)
 {
-    for(int i = 0; i<24; i++)
-    {
-        if(selectedProgrammingRows[i])
-        {
-            programmer.updateTemp(selectedProgrammingSchedule, selectedProgrammingDay, i, param.asFloat());
-            String hour = String::format("%02d",i);
-            String temp = String::format("%3.1f C", param.asFloat());
-            Blynk.virtualWrite(PROG_SCHEDULE_TABLE, "update", i, hour, temp);
-        }
-    }
+    Blynk.virtualWrite(Z1_MODE, ProgramIds::OneHrOverride);
+}
+BLYNK_WRITE(Z2_TEMP_OVERRIDE)
+{
+    // select override program
+    // Set temp of override
+    overrideTime[1] = Time.now();
+    programmer.setOverride(2, param.asFloat());
+    // switch mode to override.
+    Blynk.virtualWrite(Z2_MODE, ProgramIds::OneHrOverride);
     updateSetPoints();
 }
 
@@ -247,12 +325,30 @@ void measureSysTemp()
   Serial.printf("System temp: %3.2fC\n", systemTemp);
 }
 
+// Annoyingly, because we can't set blynk state outside of this file,
+// we have to maintain the override state here and check and revert it
+// instead of inside the programmer class.
 void updateSetPoints()
 {
     Serial.printf("UpdateSetPoints.\n");
     time_t now = Time.now();
+    // Check if the override is active and has expired. Reset if it has.
+    for(int i = 0; i<2; i++)
+    {
+        if(overrideTime[i] > 0 && now > overrideTime[i] + (OVERRIDE_TIMEOUT * 60))
+        {
+            Serial.printf("override: %d. resetting zone %d\n", overrideTime[i], Z1_MODE + i);
+            programmer.resetOverride(i+1);
+            overrideTime[i] = 0;
+            int mode = programmer.getProgramId(i+1);
+            Serial.printf("Restting to: %d.\n", mode);
+            Blynk.virtualWrite(Z1_MODE + i, mode);
+        }
+    }
     programmer.getCurrentSetpoint(1, now, z1SetPoint);
     programmer.getCurrentSetpoint(2, now, z2SetPoint);
+    Blynk.virtualWrite(Z1_TEMP_OVERRIDE, z1SetPoint.intended);
+    Blynk.virtualWrite(Z2_TEMP_OVERRIDE, z2SetPoint.intended);
     Serial.printf("Retrieved setpoints 1: %3.2f, 2: %3.2f\n", z1SetPoint.intended, z2SetPoint.intended);
     updateControllers();
 }
@@ -272,15 +368,11 @@ void setup()
     // System timers for events. Ignore the timerId.
     timer.setInterval(SYS_TEMP_CAPTURE_INTERVAL, measureSysTemp);
     timer.setInterval(SETPOINT_UPDATE_INTERVAL, updateSetPoints);
-    //timer.setInterval(SYS_STATE_UPDATE_INTERVAL, updateControllers); //removing for now as perhaps not necessary.
 
     // Setup the Controllers.
     time_t t = Time.now();
     zone1Controller.InitialiseController(t);
     zone2Controller.InitialiseController(t);
-
-    //z1SetPoint.intended = 21.0;
-    //z2SetPoint.intended = 21.0;
 
     zone1Temp.temperature = -999.0;
     zone1Temp.timestamp = 0;
@@ -289,9 +381,7 @@ void setup()
     zone2Temp.temperature = -999.0;
     zone2Temp.timestamp = 0;
 
-    // Setup the setpoints
-    //initialiseScheduledTemps();
-    //programmer.initialise();
+    // Set the heating to its default mode.
     programmer.selectProgram(1, ProgramIds::On);
     programmer.selectProgram(2, ProgramIds::Schedule);
     updateSetPoints();
