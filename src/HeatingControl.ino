@@ -52,10 +52,10 @@
 #define D_ZONE1_CTRL    D0
 #define D_ZONE2_CTRL    D1
 
-// System timing intervals (ms).
-const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000;
-const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000;
-const long  SETPOINT_UPDATE_INTERVAL  = 60 * 1000;
+// System timing intervals.
+const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000; // ms
+const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000; // ms
+const long  SETPOINT_UPDATE_INTERVAL  = 60 * 1000; // ms
 const long  OVERRIDE_TIMEOUT          = 60; // mins
 
 RemoteTemp      zone1Temp;
@@ -278,7 +278,14 @@ BLYNK_WRITE(Z1_MODE)
 BLYNK_WRITE(Z2_MODE)
 {
     Serial.printf("Selected Z2 mode: %d\n", param.asInt());
-    programmer.selectProgram(2, (ProgramIds)param.asInt());
+    if((ProgramIds)param.asInt() == ProgramIds::OneHrOverride)
+    {
+        Blynk.syncVirtual(Z2_TEMP_OVERRIDE);
+    }
+    else
+    {
+        programmer.selectProgram(2, (ProgramIds)param.asInt());
+    }
     updateSetPoints();
 }
 

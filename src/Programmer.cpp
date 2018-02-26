@@ -71,7 +71,7 @@ int Programmer::getProgramId(int zone)
 void Programmer::setOverride(int zone, float temp)
 {
     int refZone = zone-1;
-    Serial.printf("in Programmer::setOverride1 %d\n", refZone);
+    Serial.printf("in Programmer::setOverride %d\n", refZone);
     if(previousProg[refZone] == NULL)
     {
         previousProg[refZone] = currentProgram[refZone];
