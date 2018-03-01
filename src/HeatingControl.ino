@@ -52,6 +52,8 @@
 #define D_ZONE1_CTRL    D0
 #define D_ZONE2_CTRL    D1
 
+#define Zone2TempSensor ElectricImpTest //ElectricImpProd1
+
 // System timing intervals.
 const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000; // ms
 const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000; // ms
@@ -122,8 +124,23 @@ int retrieveZone1Temperature(String extra) {
     return 1;
 }
 
-int retrieveZone2Temperature(String extra) {
-    zone2Temp.temperature = atof(extra);
+// Expecting: deviceId,temperature
+int retrieveZone2Temperature(String command) {
+    String id = command.substring(0, command.indexOf(','));
+    String temp = command.substring(command.indexOf(',')+1);
+    char idChar[30];
+    char tempChar[30];
+    id.toCharArray(idChar, 30);
+    temp.toCharArray(tempChar, 30);
+    Serial.printf("strings: %s  :  %s  :  %s\n", idChar, Zone2TempSensor, tempChar);
+
+    if(!id.equals(String(Zone2TempSensor)))
+    {
+        Serial.printf("Different sensor reported. Ignoring.\n");
+        return 0;
+    }
+
+    zone2Temp.temperature = atof(temp);
     zone2Temp.timestamp = Time.now();
     Serial.printf("remoteTemp at %i: %3.2fC.\n", zone2Temp.timestamp, zone2Temp.temperature);
 
