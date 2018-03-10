@@ -52,8 +52,8 @@
 #define D_ZONE1_CTRL    D0
 #define D_ZONE2_CTRL    D1
 
-#define Zone1TempSensor ElectricImpTest //ElectricImpProd1
-#define Zone2TempSensor ElectricImpTest //ElectricImpProd1
+#define remote1TempSensor ElectricImpTest //ElectricImpProd1
+#define remote2TempSensor ElectricImpTest //ElectricImpProd1
 
 // System timing intervals.
 const long  SYS_TEMP_CAPTURE_INTERVAL = 5 * 1000; // ms
@@ -61,8 +61,8 @@ const long  SYS_STATE_UPDATE_INTERVAL = 1 * 1000; // ms
 const long  SETPOINT_UPDATE_INTERVAL  = 60 * 1000; // ms
 const long  OVERRIDE_TIMEOUT          = 60; // mins
 
-RemoteTemp      zone1Temp;
-RemoteTemp      zone2Temp;
+RemoteTemp      remote1Temp;
+RemoteTemp      remote2Temp;
 ZoneController  zone1Controller = ZoneController(D_ZONE1_CTRL);
 ZoneController  zone2Controller = ZoneController(D_ZONE2_CTRL);
 SetPoint        z1SetPoint;
@@ -70,7 +70,6 @@ SetPoint        z2SetPoint;
 time_t          overrideTime[2] = {0};
 BlynkTimer      timer;
 Programmer      programmer = Programmer();
-//Programmer      programmer2 = Programmer();
 
 WidgetLED       z1Active(Z1_ON);
 WidgetLED       z2Active(Z2_ON);
@@ -78,9 +77,14 @@ WidgetLED       z1Intent(Z1_INTENT);
 WidgetLED       z2Intent(Z2_INTENT);
 
 // Update Blynk client on temp measurement or setPoint change
-void updateZ1BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &state)
+void updateZ1BlynkClient(struct RemoteTemp &remoteTemp, struct ControllerState &state)
 {
-    Blynk.virtualWrite(Z1_TEMP, zoneTemp.temperature);
+    // can send "---" to display a null value in the UI.
+    if(remoteTemp.validTemp(Time.now()))
+        Blynk.virtualWrite(Z1_TEMP, remoteTemp.temperature);
+    else
+        Blynk.virtualWrite(Z1_TEMP, "---");
+
     if(state.zoneOn)
         z1Active.on();
     else
@@ -90,16 +94,20 @@ void updateZ1BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &st
     else
         z1Intent.off();
 
-    Blynk.virtualWrite(Z1_TEMP_OVERRIDE, state.setPoint.intended); // z1SetPoint.intended); // should be state. ... instead?
+    Blynk.virtualWrite(Z1_TEMP_OVERRIDE, state.setPoint.intended);
     Blynk.virtualWrite(Z1_SETPOINT, state.setPoint.intended);
     Blynk.virtualWrite(Z1_SETPOINTL, state.setPoint.intendedL);
     Blynk.virtualWrite(Z1_SETPOINTH, state.setPoint.intendedH);
     return;
 }
 
-void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &state)
+void updateZ2BlynkClient(struct RemoteTemp &remoteTemp, struct ControllerState &state)
 {
-    Blynk.virtualWrite(Z2_TEMP, zoneTemp.temperature);
+    if(remoteTemp.validTemp(Time.now()))
+        Blynk.virtualWrite(Z2_TEMP, remoteTemp.temperature);
+    else
+        Blynk.virtualWrite(Z2_TEMP, "---");
+
     if(state.zoneOn)
         z2Active.on();
     else
@@ -127,63 +135,25 @@ int getRemoteTemperature(String command)
     float remoteTemperature = atof(temp);
     time_t timestamp = Time.now();
     ControllerState state;
-    if(id.equals(String(Zone1TempSensor)))
+    if(id.equals(String(remote1TempSensor)))
     {
-            zone1Temp.temperature = remoteTemperature;
-            zone1Temp.timestamp = timestamp;
-            zone1Controller.UpdateSystem(zone1Temp.timestamp, zone1Temp, z1SetPoint, state);
-            updateZ1BlynkClient(zone1Temp, state);
-            Serial.printf("remoteTemp 1 at %i: %3.2fC.\n", zone1Temp.timestamp, zone1Temp.temperature);
+            remote1Temp.temperature = remoteTemperature;
+            remote1Temp.timestamp = timestamp;
+            zone1Controller.UpdateSystem(remote1Temp.timestamp, remote1Temp, z1SetPoint, state);
+            updateZ1BlynkClient(remote1Temp, state);
+            Serial.printf("remoteTemp 1 at %i: %3.2fC.\n", remote1Temp.timestamp, remote1Temp.temperature);
     }
-    if(id.equals(String(Zone2TempSensor)))
+    if(id.equals(String(remote2TempSensor)))
     {
-            zone2Temp.temperature = remoteTemperature;
-            zone2Temp.timestamp = timestamp;
-            zone2Controller.UpdateSystem(zone2Temp.timestamp, zone2Temp, z2SetPoint, state);
-            updateZ2BlynkClient(zone2Temp, state);
-            Serial.printf("remoteTemp 2 at %i: %3.2fC.\n", zone2Temp.timestamp, zone2Temp.temperature);
+            remote2Temp.temperature = remoteTemperature;
+            remote2Temp.timestamp = timestamp;
+            zone2Controller.UpdateSystem(remote2Temp.timestamp, remote2Temp, z2SetPoint, state);
+            updateZ2BlynkClient(remote2Temp, state);
+            Serial.printf("remoteTemp 2 at %i: %3.2fC.\n", remote2Temp.timestamp, remote2Temp.temperature);
     }
 
     return 1;
 }
-
-// Cloud functions must return int and take one String
-/*int retrieveZone1Temperature(String extra) {
-    zone1Temp.temperature = atof(extra);
-    zone1Temp.timestamp = Time.now();
-    Serial.printf("remoteTemp at %i: %3.2fC.\n", zone1Temp.timestamp, zone1Temp.temperature);
-
-    ControllerState state;
-    zone1Controller.UpdateSystem(zone1Temp.timestamp, zone1Temp, z1SetPoint, state);
-    updateZ1BlynkClient(zone1Temp, state);
-    return 1;
-}
-
-// Expecting: deviceId,temperature
-int retrieveZone2Temperature(String command) {
-    String id = command.substring(0, command.indexOf(','));
-    String temp = command.substring(command.indexOf(',')+1);
-    char idChar[30];
-    char tempChar[30];
-    id.toCharArray(idChar, 30);
-    temp.toCharArray(tempChar, 30);
-    Serial.printf("strings: %s  :  %s  :  %s\n", idChar, Zone2TempSensor, tempChar);
-
-    if(!id.equals(String(Zone2TempSensor)))
-    {
-        Serial.printf("Different sensor reported. Ignoring.\n");
-        return 0;
-    }
-
-    zone2Temp.temperature = atof(temp);
-    zone2Temp.timestamp = Time.now();
-    Serial.printf("remoteTemp at %i: %3.2fC.\n", zone2Temp.timestamp, zone2Temp.temperature);
-
-    ControllerState state;
-    zone2Controller.UpdateSystem(zone2Temp.timestamp, zone2Temp, z2SetPoint, state);
-    updateZ2BlynkClient(zone2Temp, state);
-    return 1;
-}*/
 
 void updateControllers()
 {
@@ -192,10 +162,10 @@ void updateControllers()
     time_t now = Time.now();
     ControllerState state1, state2;
 
-    zone1Controller.UpdateSystem(now, zone1Temp, z1SetPoint, state1);
-    updateZ1BlynkClient(zone1Temp, state1);
-    zone2Controller.UpdateSystem(now, zone2Temp, z2SetPoint, state2);
-    updateZ2BlynkClient(zone2Temp, state2);
+    zone1Controller.UpdateSystem(now, remote1Temp, z1SetPoint, state1);
+    updateZ1BlynkClient(remote1Temp, state1);
+    zone2Controller.UpdateSystem(now, remote2Temp, z2SetPoint, state2);
+    updateZ2BlynkClient(remote2Temp, state2);
 }
 
 int selectedProgrammingSchedule = 0;
@@ -375,23 +345,6 @@ BLYNK_WRITE(Z2_TEMP_OVERRIDE)
     updateSetPoints();
 }
 
-/*// Call back for the setpoint.
-BLYNK_WRITE(Z1_SETPOINT) {
-    z1SetPoint.intended = param.asFloat();
-    Serial.printf("Z1 Setpoint: %f\n", z1SetPoint.intended);
-    ControllerState state;
-    zone1Controller.UpdateSystem(Time.now(), zone1Temp, z1SetPoint, state);
-}
-
-// Call back for the setpoint.
-BLYNK_WRITE(Z2_SETPOINT) {
-    z2SetPoint.intended = param.asFloat();
-    Serial.printf("Z2 Setpoint: %f\n", z2SetPoint.intended);
-    ControllerState state;
-    zone2Controller.UpdateSystem(Time.now(), zone2Temp, z2SetPoint, state);
-    updateZ2BlynkClient(zone2Temp, state);
-}*/
-
 // Measures the System's temperature. It then updates the relevant
 // Blynk virtual pin and prints some debug. This is the callback method
 // from a blynk timer.
@@ -450,19 +403,19 @@ void setup()
     zone1Controller.InitialiseController(t);
     zone2Controller.InitialiseController(t);
 
-    zone1Temp.temperature = -999.0;
-    zone1Temp.timestamp = 0;
+    remote1Temp.temperature = -999.0;
+    remote1Temp.timestamp = 0;
 
     // Cloud function used to retrieve a zone 2 temperature.
-    zone2Temp.temperature = -999.0;
-    zone2Temp.timestamp = 0;
+    remote2Temp.temperature = -999.0;
+    remote2Temp.timestamp = 0;
 
     // Set the heating to its default mode.
-    programmer.selectProgram(0, ProgramIds::On);
+    programmer.selectProgram(0, ProgramIds::Schedule);
     programmer.selectProgram(1, ProgramIds::Schedule);
     updateSetPoints();
 
-    bool success = Particle.function("postTemp", getRemoteTemperature); // retrieveZone2Temperature);
+    bool success = Particle.function("postTemp", getRemoteTemperature); // retrieveremote2Temperature);
 
     delay(5000); // Allow board to settle
 

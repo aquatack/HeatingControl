@@ -1,9 +1,21 @@
 #ifndef SYSTEMTEMP_H
 #define SYSTEMTEMP_H
 
-struct RemoteTemp {
+class RemoteTemp {
+private:
+    // Time after which we consider the remote temperature to be invalid (s)
+    const long InvalidationTime = 120;
+public:
     time_t timestamp;
     float temperature;
+
+    bool validTemp(time_t now)
+    {
+        if(timestamp+InvalidationTime > now)
+            return true;
+        else
+            return false;
+    }
 };
 
 // Converts the ADC input value into a float temperature in deg C.
