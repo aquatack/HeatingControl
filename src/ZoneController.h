@@ -6,7 +6,7 @@
 
 struct ControllerState
 {
-    RemoteTemp  measureTemp;
+    RemoteTemp* measuredTemp;
     SetPoint    setPoint;
     bool        zoneOn;
     bool        zoneIntent;
@@ -26,7 +26,7 @@ class ZoneController
 public:
     ZoneController(int zoneControlOutput);
     void InitialiseController(time_t now);
-    void UpdateSystem(time_t now, RemoteTemp measuredTemperature, SetPoint setPoint, ControllerState &state);
+    void UpdateSystem(time_t now, RemoteTemp &measuredTemperature, SetPoint setPoint, ControllerState &state);
 };
 
 #endif

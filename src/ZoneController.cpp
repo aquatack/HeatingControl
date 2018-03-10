@@ -11,9 +11,9 @@ void ZoneController::InitialiseController(time_t now)
     LastHeatingToggleTime = now;
 }
 
-void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, SetPoint setPoint, ControllerState &state)
+void ZoneController::UpdateSystem(time_t now, RemoteTemp &measuredTemperature, SetPoint setPoint, ControllerState &state)
 {
-    state.measureTemp = measuredTemperature;
+    state.measuredTemp = &measuredTemperature;
     state.setPoint.intended = setPoint.intended;
     state.setPoint.intendedH = setPoint.intended + HysterisisBracketSide;
     state.setPoint.intendedL = setPoint.intended - HysterisisBracketSide;
