@@ -11,9 +11,9 @@ void ZoneController::InitialiseController(time_t now)
     LastHeatingToggleTime = now;
 }
 
-void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, SetPoint setPoint, ControllerState &state)
+void ZoneController::UpdateSystem(time_t now, RemoteTemp &measuredTemperature, SetPoint setPoint, ControllerState &state)
 {
-    state.measureTemp = measuredTemperature;
+    state.measuredTemp = &measuredTemperature;
     state.setPoint.intended = setPoint.intended;
     state.setPoint.intendedH = setPoint.intended + HysterisisBracketSide;
     state.setPoint.intendedL = setPoint.intended - HysterisisBracketSide;
@@ -22,7 +22,7 @@ void ZoneController::UpdateSystem(time_t now, RemoteTemp measuredTemperature, Se
     int backoff = LastHeatingToggleTime + MinSwitchTime - now;
     state.zoneBackoffT = max(backoff, 0);
 
-    if(measuredTemperature.timestamp + MaxTempAge < now)
+    if(!measuredTemperature.validTemp(now))
     {
         Serial.printf("The temperature measurement is too old (measure: %d, now: %d). Ignoring.\n",
             measuredTemperature.timestamp,
