@@ -3,8 +3,8 @@
 
 class RemoteTemp {
 private:
-    // Time after which we consider the remote temperature to be invalid (ms)
-    const long InvalidationTime = 120 * 1000;
+    // Time after which we consider the remote temperature to be invalid (s)
+    const long InvalidationTime = 120;
 public:
     time_t timestamp;
     float temperature;

@@ -22,7 +22,7 @@ void ZoneController::UpdateSystem(time_t now, RemoteTemp &measuredTemperature, S
     int backoff = LastHeatingToggleTime + MinSwitchTime - now;
     state.zoneBackoffT = max(backoff, 0);
 
-    if(measuredTemperature.timestamp + MaxTempAge < now)
+    if(!measuredTemperature.validTemp(now))
     {
         Serial.printf("The temperature measurement is too old (measure: %d, now: %d). Ignoring.\n",
             measuredTemperature.timestamp,

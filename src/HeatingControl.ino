@@ -101,14 +101,13 @@ void updateZ1BlynkClient(struct RemoteTemp &remoteTemp, struct ControllerState &
     return;
 }
 
-void updateZ2BlynkClient(struct RemoteTemp &zoneTemp, struct ControllerState &state)
+void updateZ2BlynkClient(struct RemoteTemp &remoteTemp, struct ControllerState &state)
 {
     if(remoteTemp.validTemp(Time.now()))
         Blynk.virtualWrite(Z2_TEMP, remoteTemp.temperature);
     else
         Blynk.virtualWrite(Z2_TEMP, "---");
 
-    Blynk.virtualWrite(Z2_TEMP, zoneTemp.temperature);
     if(state.zoneOn)
         z2Active.on();
     else
@@ -412,7 +411,7 @@ void setup()
     remote2Temp.timestamp = 0;
 
     // Set the heating to its default mode.
-    programmer.selectProgram(0, ProgramIds::On);
+    programmer.selectProgram(0, ProgramIds::Schedule);
     programmer.selectProgram(1, ProgramIds::Schedule);
     updateSetPoints();
 

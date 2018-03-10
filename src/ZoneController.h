@@ -17,7 +17,7 @@ class ZoneController
 {
     const int MinSwitchTime = 300; // Minimum time allowed between switching / after powerup.
     const float HysterisisBracketSide = 0.25;
-    const int   MaxTempAge = 5*60;    // Time in s that we want Z2 temp reading to be within.
+    //const int   MaxTempAge = 5*60;    // Time in s that we want Z2 temp reading to be within.
     int ZoneControlOutput;
     //Timer ControllerTimer;
     time_t LastHeatingToggleTime;
