@@ -17,63 +17,65 @@ Programmer::Programmer()
     previousProg[1] = NULL;
 }
 
+// zero indexed zone.
 void Programmer::selectProgram(int zone, ProgramIds programId)
 {
     Serial.printf("selecting a program: zone %d, progId %d\n", zone, programId);
     if(programId == ProgramIds::Off)
     {
         Serial.printf("off prog selected.\n" );
-        currentProgram[--zone] = offProgLocal;
+        currentProgram[zone] = offProgLocal;
     }
     else if(programId == ProgramIds::On)
     {
         Serial.printf("On prog selected.\n" );
-        currentProgram[--zone] = onProgLocal;
+        currentProgram[zone] = onProgLocal;
     }
     else if(programId == ProgramIds::Schedule)
     {
-        if(zone == 1)
+        if(zone == 0)
         {
             Serial.printf("z1 schedule selected.\n");
-            currentProgram[--zone] = z1SchedLocal;
+            currentProgram[zone] = z1SchedLocal;
         }
-        else if (zone == 2)
+        else if (zone == 1)
         {
             Serial.printf("z2 schedule selected.\n");
-            currentProgram[--zone] = z2SchedLocal;
+            currentProgram[zone] = z2SchedLocal;
         }
     }
     else if(programId == ProgramIds::Away)
     {
         Serial.printf("Away prog selected.\n" );
-        currentProgram[--zone]= awayProg;
+        currentProgram[zone]= awayProg;
     }
     else if (programId == ProgramIds::OneHrOverride)
     {
-        if(zone == 1)
+        if(zone == 0)
         {
             Serial.printf("z1 1hr prog selected.\n");
-            currentProgram[--zone] = tempProg[0];
+            currentProgram[0] = tempProg[0];
         }
-        else if (zone == 2)
+        else if (zone == 1)
         {
             Serial.printf("z2 1hr prog selected.\n");
-            currentProgram[--zone] = tempProg[1];
+            currentProgram[1] = tempProg[1];
         }
     }
 }
 
 int Programmer::getProgramId(int zone)
 {
-    return currentProgram[--zone]->getProgramId();
+    return currentProgram[zone]->getProgramId();
 }
 
 void Programmer::setOverride(int zone, float temp)
 {
-    int refZone = zone-1;
-    Serial.printf("in Programmer::setOverride %d\n", refZone);
+    int refZone = zone;
+    Serial.printf("in Programmer::setOverride. Zone: %d\n", refZone);
     if(previousProg[refZone] == NULL)
     {
+        Serial.printf("Programmer::SetOverride: updating proviousProg\n");
         previousProg[refZone] = currentProgram[refZone];
         currentProgram[refZone] = tempProg[refZone];
     }
@@ -82,19 +84,23 @@ void Programmer::setOverride(int zone, float temp)
 
 void Programmer::resetOverride(int zone)
 {
-    currentProgram[zone-1] = previousProg[zone-1];
-    previousProg[zone-1] = NULL;
+    if(previousProg[zone] != NULL)
+    {
+        currentProgram[zone] = previousProg[zone];
+        previousProg[zone] = NULL;
+    }
 }
 
 void Programmer::getCurrentSetpoint(int zone, time_t now, struct SetPoint& setpoint)
 {
     Serial.printf("Getting current set point for zone %d\n", zone);
-    return currentProgram[--zone]->getCurrentSetpoint(now, setpoint);
+    return currentProgram[zone]->getCurrentSetpoint(now, setpoint);
 }
 
 void Programmer::getSchedule(int schedule, int day, ProgramPoints* programPoints)
 {
     if(schedule == Schedules::Zone1) {
+        Serial.printf("getting zone 1 schedule.\n" );
         z1SchedLocal->getSchedule(day, programPoints);
     } else if(schedule == Schedules::Zone2) {
         Serial.printf("getting zone 2 schedule.\n" );
