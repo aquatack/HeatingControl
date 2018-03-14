@@ -196,7 +196,9 @@ void refreshProgrammeTable()
 
 BLYNK_WRITE(PROG_TIME_1) {
   long startTimeInSecs = param[0].asLong();
-  Serial.printf("Received time setting: %d\n",startTimeInSecs);
+  Serial.printf("Received time setting for first time setting: %d. Resetting to zero.\n",startTimeInSecs);
+  char tz[] = "Europe/London";
+  Blynk.virtualWrite(PROG_TIME_1, 0, 0, tz);
   programmer.updateTime(selectedProgrammingSchedule, selectedProgrammingDay, 0, startTimeInSecs);
   updateSetPoints();
 }
