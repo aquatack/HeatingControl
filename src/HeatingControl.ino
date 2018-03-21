@@ -123,7 +123,7 @@ void updateZ2BlynkClient(struct RemoteTemp &remoteTemp, struct ControllerState &
     Blynk.virtualWrite(Z2_SETPOINTH, state.setPoint.intendedH);
     return;
 }
-
+/*
 int getRemoteTemperature(String command)
 {
     String id = command.substring(0, command.indexOf(','));
@@ -153,7 +153,7 @@ int getRemoteTemperature(String command)
     }
 
     return 1;
-}
+}*/
 
 void updateControllers()
 {
@@ -384,6 +384,49 @@ void updateSetPoints()
     updateControllers();
 }
 
+int i = 0;
+
+void temperatureSensingEventHandler(const char *event, const char *data)
+{
+  i++;
+  // Serial.print(i);
+  // Serial.print(event);
+  // Serial.print(", data: ");
+  Serial.printf("Received Sensor Message %d: %s, payload data: ", i, event);
+  if (data)
+    Serial.println(data);
+  else
+    Serial.println("NULL");
+
+    String command = String(data);
+
+    String id = command.substring(0, command.indexOf(','));
+    String temp = command.substring(command.indexOf(',')+1);
+    char idChar[30];
+    char tempChar[30];
+    id.toCharArray(idChar, 30);
+    temp.toCharArray(tempChar, 30);
+    float remoteTemperature = atof(temp);
+    time_t timestamp = Time.now();
+    ControllerState state;
+    if(id.equals(String("TempSens1")))
+    {
+            remote1Temp.temperature = remoteTemperature;
+            remote1Temp.timestamp = timestamp;
+            zone1Controller.UpdateSystem(remote1Temp.timestamp, remote1Temp, z1SetPoint, state);
+            updateZ1BlynkClient(remote1Temp, state);
+            Serial.printf("remoteTemp 1 at %i: %3.2fC.\n", remote1Temp.timestamp, remote1Temp.temperature);
+    }
+    if(id.equals(String("TempSens2")))
+    {
+            remote2Temp.temperature = remoteTemperature;
+            remote2Temp.timestamp = timestamp;
+            zone2Controller.UpdateSystem(remote2Temp.timestamp, remote2Temp, z2SetPoint, state);
+            updateZ2BlynkClient(remote2Temp, state);
+            Serial.printf("remoteTemp 2 at %i: %3.2fC.\n", remote2Temp.timestamp, remote2Temp.temperature);
+    }
+}
+
 // bootup routines.
 void setup()
 {
@@ -417,7 +460,9 @@ void setup()
     programmer.selectProgram(1, ProgramIds::Schedule);
     updateSetPoints();
 
-    bool success = Particle.function("postTemp", getRemoteTemperature); // retrieveremote2Temperature);
+    //bool success = Particle.function("postTemp", getRemoteTemperature); // retrieveremote2Temperature);
+
+    Particle.subscribe("Sensor/Temperature", temperatureSensingEventHandler, MY_DEVICES);
 
     delay(5000); // Allow board to settle
 
